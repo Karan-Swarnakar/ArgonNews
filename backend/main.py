@@ -1,6 +1,7 @@
 from collectors.website import collect_website
 from collectors.article import extract_article
 from collectors.cleaner import clean_text
+from processing.classifier import classify_article
 from sources import SOURCES
 
 import json
@@ -27,6 +28,7 @@ for source in SOURCES:
         if content:
             content = clean_text(content)
             article["content"] = content
+            article["category"] = classify_article(article)
             all_articles.append(article)
 
 
