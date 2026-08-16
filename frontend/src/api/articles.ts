@@ -24,8 +24,7 @@ import { Article } from '../types';
 import { MOCK_ARTICLES } from '../data/mockArticles';
 
 // Read configuration from environment variables with safe defaults
-export const API_BASE_URL: string =
-  (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:8000';
+export const API_BASE_URL: string = '';
 
 // Default mock state from environment variable
 export const DEFAULT_USE_MOCK: boolean =
@@ -134,11 +133,7 @@ export async function getArticles(
   // - ${baseUrl}/articles
   // - ${baseUrl}/api/articles
   // - ${baseUrl}/articles.json
-  const endpointsToTry = [
-    `${baseUrl}/articles`,
-    `${baseUrl}/api/articles`,
-    `${baseUrl}/articles.json`
-  ];
+  const endpointsToTry = ['/articles.json'];
 
   let lastError: Error | null = null;
 
@@ -260,7 +255,7 @@ export async function testBackendConnection(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-    const res = await fetch(`${baseUrl}/articles`, {
+    const res = await fetch('/articles.json', {
       method: 'GET',
       headers: { Accept: 'application/json' },
       signal: controller.signal
@@ -284,7 +279,7 @@ export async function testBackendConnection(
 
     return {
       success: true,
-      message: `Successfully connected to ${baseUrl}! Found ${count} articles.`,
+      message: `Successfully loaded public articles.json! Found ${count} articles.`,
       count
     };
   } catch (err: any) {
