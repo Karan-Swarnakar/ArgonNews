@@ -4,3 +4,6 @@ __pycache__/
 .env
 .DS_Store
 articles.json
+node_modules/
+dist/
+.wrangler/
