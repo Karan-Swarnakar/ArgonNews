@@ -1,73 +1,154 @@
-import React from 'react';
-import { Newspaper, SearchX, RotateCcw } from 'lucide-react';
-import { Article } from '../types';
+import React, { useState, useEffect } from 'react';
+import { ChevronDown, SearchX, RotateCcw } from 'lucide-react';
+import { Article, ViewMode } from '../types';
 import { ArticleCard } from './ArticleCard';
 
 interface ArticleFeedProps {
   articles: Article[];
   onSelectArticle: (article: Article) => void;
-  title?: string;
+  savedArticleIds?: Set<string | number>;
+  onToggleBookmark?: (article: Article) => void;
   onResetFilters?: () => void;
+  title?: string;
+  onSelectEntity?: (entity: string) => void;
+  viewMode?: ViewMode;
 }
+
+const PAGE_SIZE = 30;
 
 export const ArticleFeed: React.FC<ArticleFeedProps> = ({
   articles,
   onSelectArticle,
-  title = 'Intelligence Feed',
+  savedArticleIds = new Set(),
+  onToggleBookmark,
   onResetFilters,
+  title = 'Intelligence Dispatches',
+  onSelectEntity,
+  viewMode = 'editorial',
 }) => {
+  const [displayCount, setDisplayCount] = useState<number>(PAGE_SIZE);
+
+  // Reset display count whenever the dataset/filtering changes
+  useEffect(() => {
+    setDisplayCount(PAGE_SIZE);
+  }, [articles.length, title]);
+
+  const isBookmarked = (a: Article) => savedArticleIds.has(a.id || a.url || a.title);
+
   if (articles.length === 0) {
     return (
-      <div className="rounded-xl border border-slate-800/80 bg-slate-900/30 p-10 text-center my-6">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-800/60 text-slate-400 mb-3">
+      <div
+        id="empty-articles-state"
+        className="my-16 py-12 text-center max-w-md mx-auto border-t border-b border-[#21262d]"
+      >
+        <div className="mx-auto flex h-10 w-10 items-center justify-center text-[#6e7681] mb-3">
           <SearchX className="h-6 w-6" />
         </div>
-        <h3 className="text-base font-semibold text-slate-200">
-          No articles match your criteria
+        <h3 className="font-serif text-lg font-normal text-[#f0f6fc] mb-1">
+          No dispatches match your query
         </h3>
-        <p className="mt-1 text-xs text-slate-400 max-w-md mx-auto">
-          Try clearing your search query or relaxing your importance and category filters.
+        <p className="text-xs text-[#8b949e] font-sans mb-4 leading-relaxed">
+          Try expanding your search parameters, selecting another desk, or resetting filters.
         </p>
         {onResetFilters && (
           <button
+            id="reset-filter-empty-btn"
             onClick={onResetFilters}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-950/40 px-3.5 py-1.5 text-xs font-medium text-cyan-300 hover:bg-cyan-950/70 transition-colors"
+            className="inline-flex items-center gap-1.5 font-mono text-xs text-[#58a6ff] hover:text-[#79c0ff] hover:underline"
           >
-            <RotateCcw className="h-3.5 w-3.5" />
-            Reset all filters
+            <RotateCcw className="h-3 w-3" />
+            <span>Reset filters</span>
           </button>
         )}
       </div>
     );
   }
 
+  const visibleArticles = articles.slice(0, displayCount);
+  const hasMore = displayCount < articles.length;
+
   return (
-    <section id="article-feed-section" className="mb-12">
-      {/* Section Header */}
-      <div className="flex items-center justify-between gap-4 mb-4 border-b border-slate-800/80 pb-2.5">
-        <div className="flex items-center gap-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
-            <Newspaper className="h-3.5 w-3.5" />
-          </div>
-          <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-100">
-            {title}
-          </h2>
-        </div>
-        <div className="text-xs font-mono text-slate-400">
-          {articles.length} {articles.length === 1 ? 'article' : 'articles'}
+    <section id="article-feed-section" className="mb-14">
+      {/* Editorial Section Header */}
+      <div className="flex items-baseline justify-between border-b border-[#2d333b] pb-2 mb-4">
+        <h2 className="font-serif text-lg sm:text-xl font-normal tracking-tight text-[#f0f6fc]">
+          {title}
+        </h2>
+        <div className="font-mono text-[11px] text-[#6e7681]">
+          Showing {visibleArticles.length} of {articles.length.toLocaleString()} {articles.length === 1 ? 'dispatch' : 'dispatches'}
         </div>
       </div>
 
-      {/* Grid of articles */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-        {articles.map((article) => (
-          <ArticleCard
-            key={article.id || article.url || article.title}
-            article={article}
-            onSelect={onSelectArticle}
-          />
-        ))}
-      </div>
+      {/* Article List / Editorial Broadsheet Feed */}
+      {viewMode === 'dense' ? (
+        /* High-density Wire */
+        <div className="divide-y divide-[#21262d] border-t border-[#21262d]">
+          {visibleArticles.map((article) => (
+            <ArticleCard
+              key={article.id || article.url || article.title}
+              article={article}
+              onSelect={onSelectArticle}
+              isBookmarked={isBookmarked(article)}
+              onToggleBookmark={onToggleBookmark}
+              onSelectEntity={onSelectEntity}
+              layout="wire"
+            />
+          ))}
+        </div>
+      ) : viewMode === 'magazine' ? (
+        /* 2-column Broadsheet */
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
+          {visibleArticles.map((article) => (
+            <ArticleCard
+              key={article.id || article.url || article.title}
+              article={article}
+              onSelect={onSelectArticle}
+              isBookmarked={isBookmarked(article)}
+              onToggleBookmark={onToggleBookmark}
+              onSelectEntity={onSelectEntity}
+              layout="editorial"
+            />
+          ))}
+        </div>
+      ) : (
+        /* Default: 1-column beside-image broadsheet feed (Desktop: content on left, 240-260px image on right) */
+        <div className="divide-y divide-[#21262d]">
+          {visibleArticles.map((article) => (
+            <ArticleCard
+              key={article.id || article.url || article.title}
+              article={article}
+              onSelect={onSelectArticle}
+              isBookmarked={isBookmarked(article)}
+              onToggleBookmark={onToggleBookmark}
+              onSelectEntity={onSelectEntity}
+              layout="editorial"
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Incremental Loading Controls */}
+      {hasMore && (
+        <div className="mt-10 pt-6 border-t border-[#21262d] flex flex-col sm:flex-row items-center justify-center gap-4">
+          <button
+            id="load-more-articles-btn"
+            onClick={() => setDisplayCount((prev) => Math.min(prev + PAGE_SIZE, articles.length))}
+            className="flex items-center gap-2 border border-[#30363d] bg-transparent px-5 py-2 text-xs font-mono text-[#cbd5e1] hover:bg-[#161b22] hover:text-white hover:border-[#58a6ff] transition-colors"
+          >
+            <ChevronDown className="h-3.5 w-3.5" />
+            <span>Load More Dispatches (+{Math.min(PAGE_SIZE, articles.length - displayCount)})</span>
+          </button>
+
+          {articles.length - displayCount > PAGE_SIZE && (
+            <button
+              onClick={() => setDisplayCount(articles.length)}
+              className="text-xs font-mono text-[#6e7681] hover:text-[#cbd5e1] transition-colors underline underline-offset-4"
+            >
+              Show all remaining ({articles.length - displayCount})
+            </button>
+          )}
+        </div>
+      )}
     </section>
   );
 };
