@@ -1,15 +1,8 @@
 {
+
   "name": "argonnews-root",
+
   "private": true,
-  "version": "1.0.0",
-  "type": "module",
-  "workspaces": [
-    "frontend"
-  ],
-  "scripts": {
-    "dev": "npm run dev --workspace=frontend",
-    "build": "npm run build --workspace=frontend",
-    "preview": "npm run preview --workspace=frontend",
-    "lint": "npm run lint --workspace=frontend"
-  }
+
+  "version": "1.0.0"
 }
