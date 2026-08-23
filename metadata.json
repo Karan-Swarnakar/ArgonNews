@@ -1,6 +1,6 @@
 {
-  "name": "Remix ArgonNews",
-  "description": "Imported from GitHub: Karan-Swarnakar/ArgonNews",
+  "name": "ArgonNews",
+  "description": "AI intelligence, distilled. Curated and analyzed AI developments, research, and breakthroughs.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
