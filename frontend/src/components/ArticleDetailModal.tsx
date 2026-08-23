@@ -10,8 +10,7 @@ import {
   ChevronUp,
   FileText,
   Copy,
-  Image as ImageIcon,
-  ShieldCheck,
+  Sparkles,
 } from 'lucide-react';
 import { Article } from '../types';
 import { ArticleImage } from './ArticleImage';
@@ -57,26 +56,32 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     >
       <div
         id="article-detail-modal-card"
-        className="relative w-full max-w-3xl border border-[#2d333b] bg-[#0e1013] my-6 overflow-hidden text-[#e2e8f0]"
+        className="relative w-full max-w-3xl border border-[#2d333b] bg-[#0e1013] my-6 overflow-hidden text-[#e2e8f0] shadow-2xl rounded-sm"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 1. Top Dossier Header Bar */}
-        <div className="flex items-center justify-between border-b border-[#21262d] px-6 py-3 text-xs font-sans">
+        <div className="flex items-center justify-between border-b border-[#21262d] bg-[#090a0d] px-6 py-3 text-xs font-sans">
           <div className="flex items-center gap-2.5 flex-wrap">
-            <span className="font-semibold uppercase tracking-widest text-[#cbd5e1]">
+            <span className="font-bold uppercase tracking-widest text-[#cbd5e1] flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
               Intelligence Dossier
             </span>
             <span className="text-[#3b434e]">•</span>
-            <span className="text-[#8b949e]">
+            <span className="text-[#8b949e] font-medium">
               {article.category}
             </span>
+            {importance >= 8 && (
+              <span className="text-[10px] font-sans font-semibold px-2 py-0.2 rounded-full bg-amber-950/40 text-amber-300 border border-amber-800/40">
+                Impact {importance}/10
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
             {onToggleBookmark && (
               <button
                 onClick={() => onToggleBookmark(article)}
-                className={`p-1.5 text-[#8b949e] hover:text-[#f0f6fc] transition-colors ${
+                className={`p-1.5 rounded hover:bg-[#1c2128] text-[#8b949e] hover:text-[#f0f6fc] transition-colors cursor-pointer ${
                   isBookmarked ? 'text-amber-400' : ''
                 }`}
                 title={isBookmarked ? 'Remove bookmark' : 'Bookmark entry'}
@@ -87,7 +92,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
 
             <button
               onClick={handleCopyCitation}
-              className="p-1.5 text-[#8b949e] hover:text-[#f0f6fc] transition-colors"
+              className="p-1.5 rounded hover:bg-[#1c2128] text-[#8b949e] hover:text-[#f0f6fc] transition-colors cursor-pointer"
               title="Copy citation"
             >
               {copiedCitation ? (
@@ -100,7 +105,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             <button
               id="close-modal-btn"
               onClick={onClose}
-              className="p-1.5 text-[#8b949e] hover:text-white transition-colors ml-1"
+              className="p-1.5 rounded hover:bg-[#1c2128] text-[#8b949e] hover:text-white transition-colors ml-1 cursor-pointer"
               title="Close (Esc)"
             >
               <X className="h-4 w-4" />
@@ -114,7 +119,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
           {/* Main Title & Byline */}
           <div>
             <div className="flex items-center gap-2.5 text-xs text-[#8b949e] font-sans mb-3 flex-wrap">
-              <span className="font-sans font-semibold text-xs tracking-wider uppercase text-[#f1f5f9]">
+              <span className="font-sans font-bold text-xs tracking-wider uppercase text-[#f1f5f9]">
                 {article.source}
               </span>
               {article.published_at && (
@@ -125,43 +130,24 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
               )}
             </div>
 
-            <h1 className="font-serif text-2xl sm:text-3xl font-normal text-[#f8fafc] leading-tight tracking-tight">
+            <h1 className="font-serif text-2xl sm:text-3xl font-normal text-[#f8fafc] leading-tight tracking-tight mb-4">
               {article.title}
             </h1>
-          </div>
 
-          {/* Dossier Verified Visual & Full Attribution Section */}
-          <div className="border border-[#21262d] bg-[#090b0e] p-3.5 space-y-2.5">
-            <div className="w-full max-h-[300px] overflow-hidden rounded-xs">
+            {/* Featured Image in Modal */}
+            <div className="my-4 max-h-64 overflow-hidden rounded">
               <ArticleImage
                 article={article}
                 aspectRatio="aspect-[21/9]"
-                priority={true}
-                className="w-full h-full object-cover"
+                showAttribution={true}
+                className="w-full"
               />
             </div>
-
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between text-[11px] font-sans text-[#8b949e] pt-1 border-t border-[#1c2128] gap-1.5">
-              <div className="flex items-center gap-1.5">
-                <ImageIcon className="h-3 w-3 text-[#64748b]" />
-                <span className="text-[#cbd5e1] font-sans">{article.image_credit || article.image_source || 'Verified Archive'}</span>
-              </div>
-              <div className="flex items-center gap-2 text-[10px]">
-                <span className="text-[#58a6ff]">{article.image_license || 'Public Domain / Free License'}</span>
-                <span className="text-[#3b434e]">•</span>
-                <span className="text-[#6e7681]">{article.image_source || 'ArgonNews Verified'}</span>
-              </div>
-            </div>
-            {article.image_alt && (
-              <p className="text-[11px] text-[#6e7681] font-sans italic">
-                Alt: {article.image_alt}
-              </p>
-            )}
           </div>
 
           {/* Section: Distilled Executive Summary */}
           <div className="border-t border-b border-[#21262d] py-5">
-            <h2 className="font-sans text-xs uppercase font-semibold tracking-wider text-[#cbd5e1] mb-2.5 flex items-center gap-1.5">
+            <h2 className="font-sans text-xs uppercase font-bold tracking-wider text-[#cbd5e1] mb-2.5 flex items-center gap-1.5">
               <FileText className="h-3.5 w-3.5 text-[#94a3b8]" />
               Distilled Summary
             </h2>
@@ -172,11 +158,11 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
 
           {/* Section: Strategic Implications & Why It Matters */}
           {article.analysis?.why_it_matters && (
-            <div className="pl-4 border-l-2 border-[#4b5563] py-1 text-xs">
-              <h2 className="font-sans font-semibold text-xs uppercase tracking-wider text-[#e2e8f0] mb-1">
+            <div className="pl-4 border-l-2 border-[#4b5563] py-2 rounded-r text-xs">
+              <h2 className="font-sans font-bold text-xs uppercase tracking-wider text-[#e2e8f0] mb-1">
                 Why It Matters
               </h2>
-              <p className="text-sm leading-relaxed text-[#94a3b8] italic font-serif">
+              <p className="text-[14px] leading-relaxed text-[#94a3b8] italic font-serif">
                 "{article.analysis.why_it_matters}"
               </p>
             </div>
@@ -187,7 +173,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             <div className="pt-2 text-xs font-sans space-y-3">
               {companies.length > 0 && (
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[#6e7681] uppercase text-[11px] flex items-center gap-1">
+                  <span className="text-[#6e7681] uppercase text-[11px] font-semibold flex items-center gap-1">
                     <Building2 className="h-3 w-3" /> Actors:
                   </span>
                   {companies.map((comp) => (
@@ -199,7 +185,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
                           onClose();
                         }
                       }}
-                      className="text-[#94a3b8] hover:text-[#f8fafc] hover:underline"
+                      className="text-[#94a3b8] hover:text-[#f8fafc] hover:underline cursor-pointer"
                     >
                       {comp}
                     </button>
@@ -209,7 +195,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
 
               {technologies.length > 0 && (
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[#6e7681] uppercase text-[11px] flex items-center gap-1">
+                  <span className="text-[#6e7681] uppercase text-[11px] font-semibold flex items-center gap-1">
                     <Cpu className="h-3 w-3" /> Domains:
                   </span>
                   {technologies.map((tech) => (
@@ -221,7 +207,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
                           onClose();
                         }
                       }}
-                      className="text-[#8b949e] hover:text-[#f8fafc] hover:underline"
+                      className="text-[#8b949e] hover:text-[#f8fafc] hover:underline cursor-pointer"
                     >
                       {tech}
                     </button>
@@ -236,14 +222,14 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             <div className="border-t border-[#21262d] pt-4">
               <button
                 onClick={() => setShowRawContent(!showRawContent)}
-                className="flex items-center justify-between w-full text-left font-sans text-xs text-[#8b949e] hover:text-[#cbd5e1] py-1"
+                className="flex items-center justify-between w-full text-left font-sans text-xs font-medium text-[#8b949e] hover:text-[#cbd5e1] py-1 cursor-pointer"
               >
                 <span>Raw Source Text ({article.content.length} chars)</span>
                 {showRawContent ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
               </button>
 
               {showRawContent && (
-                <div className="mt-2.5 p-3.5 font-sans text-xs text-[#8b949e] bg-[#08090b] border border-[#21262d] max-h-48 overflow-y-auto leading-relaxed whitespace-pre-wrap">
+                <div className="mt-2.5 p-3.5 font-sans text-xs text-[#8b949e] bg-[#08090b] border border-[#21262d] max-h-48 overflow-y-auto leading-relaxed whitespace-pre-wrap rounded">
                   {article.content}
                 </div>
               )}
@@ -253,10 +239,10 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
         </div>
 
         {/* 3. Modal Bottom Footer Actions */}
-        <div className="flex items-center justify-between border-t border-[#21262d] px-6 py-3.5 text-xs font-sans">
+        <div className="flex items-center justify-between border-t border-[#21262d] bg-[#0e1013] px-6 py-3.5 text-xs font-sans">
           <button
             onClick={onClose}
-            className="text-[#8b949e] hover:text-[#cbd5e1] transition-colors"
+            className="text-[#8b949e] hover:text-[#cbd5e1] transition-colors cursor-pointer font-medium"
           >
             ← Close Dossier
           </button>
@@ -266,7 +252,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
               href={article.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-[#58a6ff] hover:text-[#79c0ff] hover:underline transition-colors"
+              className="inline-flex items-center gap-1.5 text-[#58a6ff] hover:text-[#79c0ff] hover:underline font-semibold transition-colors"
             >
               <span>Open on {article.source}</span>
               <ExternalLink className="h-3 w-3" />

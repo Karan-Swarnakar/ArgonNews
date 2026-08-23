@@ -46,7 +46,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 key={desk.id}
                 id={`nav-desk-${desk.id.toLowerCase().replace(/\s+/g, '-')}`}
                 onClick={() => onSelectCategory(desk.id)}
-                className={`group relative flex shrink-0 items-center gap-2 px-3 py-2 text-xs font-medium transition-colors ${
+                className={`group relative flex shrink-0 items-center gap-2 px-3 py-2.5 text-xs font-medium transition-colors cursor-pointer ${
                   isActive
                     ? 'text-[#f0f6fc] font-semibold'
                     : 'text-[#8b949e] hover:text-[#c9d1d9]'
@@ -78,7 +78,7 @@ export const Navigation: React.FC<NavigationProps> = ({
             <button
               id="nav-desk-saved"
               onClick={() => onSelectCategory('Saved')}
-              className={`group relative flex shrink-0 items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors ${
+              className={`group relative flex shrink-0 items-center gap-1.5 px-3 py-2.5 text-xs font-medium transition-colors cursor-pointer ${
                 currentCategory === 'Saved'
                   ? 'text-amber-200 font-semibold'
                   : 'text-[#8b949e] hover:text-amber-200'

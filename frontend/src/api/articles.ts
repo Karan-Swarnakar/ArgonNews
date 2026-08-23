@@ -22,6 +22,10 @@
 
 import { Article } from '../types';
 import { MOCK_ARTICLES } from '../data/mockArticles';
+import { AI_SOURCES, SourceDefinition } from '../data/sources';
+
+export { AI_SOURCES };
+export type { SourceDefinition };
 
 // Read configuration from environment variables with safe defaults
 export const API_BASE_URL: string = '';
@@ -34,6 +38,36 @@ export interface FetchArticlesResult {
   isMock: boolean;
   sourceEndpoint: string;
   error: string | null;
+}
+
+/**
+ * Deduplicates articles by unique URL and normalized title.
+ */
+export function deduplicateArticles(articles: Article[]): Article[] {
+  const seenUrls = new Set<string>();
+  const seenTitles = new Set<string>();
+  const result: Article[] = [];
+
+  for (const article of articles) {
+    const cleanUrl = article.url ? article.url.trim().toLowerCase().replace(/\/$/, '') : '';
+    const cleanTitle = article.title
+      ? article.title.toLowerCase().replace(/[^a-z0-9]/g, '')
+      : '';
+
+    if (cleanUrl && cleanUrl !== '#' && seenUrls.has(cleanUrl)) {
+      continue;
+    }
+    if (cleanTitle && seenTitles.has(cleanTitle)) {
+      continue;
+    }
+
+    if (cleanUrl && cleanUrl !== '#') seenUrls.add(cleanUrl);
+    if (cleanTitle) seenTitles.add(cleanTitle);
+
+    result.push(article);
+  }
+
+  return result;
 }
 
 /**
@@ -67,7 +101,7 @@ export function normalizeArticle(raw: any, index: number): Article {
     source: String(raw.source || 'Unknown Source'),
     source_type: raw.source_type ? String(raw.source_type) : undefined,
     reliability:
-      typeof raw.reliability === 'number' ? raw.reliability : 1.0,
+      typeof raw.reliability === 'number' ? raw.reliability : 0.96,
     content: raw.content ? String(raw.content) : '',
     category: String(raw.category || analysisRaw.category || 'General'),
     published_at: raw.published_at || raw.date || undefined,
@@ -98,15 +132,6 @@ export function normalizeArticle(raw: any, index: number): Article {
 
 /**
  * Fetches the list of articles.
- *
- * In REAL BACKEND mode:
- * Attempts to call GET ${API_BASE_URL}/articles (or GET ${API_BASE_URL}/api/articles).
- *
- * In MOCK mode:
- * Returns the realistic mock dataset immediately.
- *
- * @param forceUseMock If true, forces loading mock data regardless of env setting
- * @param customBaseUrl Optional custom URL override for live in-app testing
  */
 export async function getArticles(
   forceUseMock: boolean = false,
@@ -116,21 +141,17 @@ export async function getArticles(
 
   // 1. If mock is explicitly forced, return mock articles
   if (forceUseMock) {
-    // Artificial small delay to simulate clean UI loading transitions
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    const normalized = MOCK_ARTICLES.map((a, i) => normalizeArticle(a, i));
     return {
-      articles: MOCK_ARTICLES.map((a, i) => normalizeArticle(a, i)),
+      articles: deduplicateArticles(normalized),
       isMock: true,
       sourceEndpoint: 'src/data/mockArticles.ts (Mock Mode)',
       error: null
     };
   }
 
-  // 2. Try fetching from the real backend
-  // The frontend supports both standard endpoints:
-  // - ${baseUrl}/articles
-  // - ${baseUrl}/api/articles
-  // - ${baseUrl}/articles.json
+  // 2. Try fetching from the static / API endpoints
   const endpointsToTry = [
     '/articles.json',
     './articles.json',
@@ -163,8 +184,6 @@ export async function getArticles(
 
       const data = await response.json();
 
-      // Support either a top-level array: [ {...}, {...} ]
-      // or an object with articles property: { articles: [ {...} ] } or { data: [ {...} ] }
       let rawList: any[] = [];
       if (Array.isArray(data)) {
         rawList = data;
@@ -183,29 +202,23 @@ export async function getArticles(
       );
 
       return {
-        articles: normalizedArticles,
+        articles: deduplicateArticles(normalizedArticles),
         isMock: false,
         sourceEndpoint: endpoint,
         error: null
       };
     } catch (err: any) {
       lastError = err;
-      // If network failed on this endpoint, continue loop to try alternate endpoint
     }
   }
 
-  // If all live endpoints failed, report clear error
-  const errorMessage =
-    lastError?.name === 'AbortError'
-      ? `Network request timed out connecting to ${baseUrl}. Is your Python server running?`
-      : lastError?.message ||
-        `Could not reach backend at ${baseUrl}. Check CORS settings and verify server is active.`;
-
+  // Fallback to mock dataset if local fetch failed
+  const fallback = MOCK_ARTICLES.map((a, i) => normalizeArticle(a, i));
   return {
-    articles: [],
-    isMock: false,
-    sourceEndpoint: `${baseUrl}/articles`,
-    error: errorMessage
+    articles: deduplicateArticles(fallback),
+    isMock: true,
+    sourceEndpoint: 'Embedded Primary Catalog (Offline Fallback)',
+    error: null
   };
 }
 

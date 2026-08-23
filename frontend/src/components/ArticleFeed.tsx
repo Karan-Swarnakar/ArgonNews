@@ -44,7 +44,7 @@ export const ArticleFeed: React.FC<ArticleFeedProps> = ({
         <div className="mx-auto flex h-10 w-10 items-center justify-center text-[#6e7681] mb-3">
           <SearchX className="h-6 w-6" />
         </div>
-        <h3 className="font-serif text-lg font-normal text-[#f0f6fc] mb-1">
+        <h3 className="font-serif text-lg font-medium text-[#f0f6fc] mb-1">
           No dispatches match your query
         </h3>
         <p className="text-xs text-[#8b949e] font-sans mb-4 leading-relaxed">
@@ -54,7 +54,7 @@ export const ArticleFeed: React.FC<ArticleFeedProps> = ({
           <button
             id="reset-filter-empty-btn"
             onClick={onResetFilters}
-            className="inline-flex items-center gap-1.5 font-mono text-xs text-[#58a6ff] hover:text-[#79c0ff] hover:underline"
+            className="inline-flex items-center gap-1.5 font-mono text-xs text-[#58a6ff] hover:text-[#79c0ff] hover:underline cursor-pointer"
           >
             <RotateCcw className="h-3 w-3" />
             <span>Reset filters</span>
@@ -71,7 +71,7 @@ export const ArticleFeed: React.FC<ArticleFeedProps> = ({
     <section id="article-feed-section" className="mb-14">
       {/* Editorial Section Header */}
       <div className="flex items-baseline justify-between border-b border-[#2d333b] pb-2 mb-4">
-        <h2 className="font-serif text-lg sm:text-xl font-normal tracking-tight text-[#f0f6fc]">
+        <h2 className="font-serif text-lg sm:text-xl font-bold tracking-tight text-[#f0f6fc]">
           {title}
         </h2>
         <div className="font-mono text-[11px] text-[#6e7681]">
@@ -96,7 +96,7 @@ export const ArticleFeed: React.FC<ArticleFeedProps> = ({
           ))}
         </div>
       ) : viewMode === 'magazine' ? (
-        /* 2-column Broadsheet */
+        /* 2-Column Magazine Grid */
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
           {visibleArticles.map((article) => (
             <ArticleCard
@@ -111,7 +111,7 @@ export const ArticleFeed: React.FC<ArticleFeedProps> = ({
           ))}
         </div>
       ) : (
-        /* Default: 1-column beside-image broadsheet feed (Desktop: content on left, 240-260px image on right) */
+        /* Default: Broadsheet (1-Column with image) */
         <div className="divide-y divide-[#21262d]">
           {visibleArticles.map((article) => (
             <ArticleCard
@@ -133,7 +133,7 @@ export const ArticleFeed: React.FC<ArticleFeedProps> = ({
           <button
             id="load-more-articles-btn"
             onClick={() => setDisplayCount((prev) => Math.min(prev + PAGE_SIZE, articles.length))}
-            className="flex items-center gap-2 border border-[#30363d] bg-transparent px-5 py-2 text-xs font-mono text-[#cbd5e1] hover:bg-[#161b22] hover:text-white hover:border-[#58a6ff] transition-colors"
+            className="flex items-center gap-2 border border-[#30363d] bg-transparent px-5 py-2.5 text-xs font-mono font-medium text-[#cbd5e1] hover:bg-[#161b22] hover:text-white transition-colors cursor-pointer rounded"
           >
             <ChevronDown className="h-3.5 w-3.5" />
             <span>Load More Dispatches (+{Math.min(PAGE_SIZE, articles.length - displayCount)})</span>
@@ -142,7 +142,7 @@ export const ArticleFeed: React.FC<ArticleFeedProps> = ({
           {articles.length - displayCount > PAGE_SIZE && (
             <button
               onClick={() => setDisplayCount(articles.length)}
-              className="text-xs font-mono text-[#6e7681] hover:text-[#cbd5e1] transition-colors underline underline-offset-4"
+              className="text-xs font-mono text-[#6e7681] hover:text-[#cbd5e1] transition-colors underline underline-offset-4 cursor-pointer"
             >
               Show all remaining ({articles.length - displayCount})
             </button>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ExternalLink, ArrowRight, Bookmark, Building2, Cpu } from 'lucide-react';
+import { ExternalLink, ArrowRight, Bookmark, Building2, Cpu, Sparkles } from 'lucide-react';
 import { Article, ViewMode } from '../types';
 import { ArticleCard } from './ArticleCard';
 import { ArticleImage } from './ArticleImage';
@@ -47,7 +47,7 @@ export const TopDevelopments: React.FC<TopDevelopmentsProps> = ({
     return (
       <section className="mb-8" id="top-developments-section">
         <div className="flex items-center justify-between border-b border-[#2d333b] pb-2 mb-1">
-          <h2 className="font-mono text-xs uppercase font-semibold tracking-wider text-[#f0f6fc]">
+          <h2 className="font-mono text-xs uppercase font-bold tracking-wider text-[#f0f6fc]">
             Key Dispatches
           </h2>
           <span className="font-mono text-[11px] text-[#6e7681]">
@@ -80,22 +80,24 @@ export const TopDevelopments: React.FC<TopDevelopmentsProps> = ({
   const leadCompanies = leadArticle.analysis?.companies ?? [];
   const leadTechs = leadArticle.analysis?.technologies ?? [];
   const leadDate = formatDate(leadArticle.published_at);
+  const leadImportance = leadArticle.analysis?.importance ?? 9;
 
   return (
     <section className="mb-10 pb-8 border-b-2 border-[#262c35]" id="top-developments-section">
       {/* Section Masthead Header */}
       <div className="flex items-center justify-between border-b border-[#2d333b] pb-2 mb-6">
         <div className="flex items-center gap-3">
-          <span className="font-sans text-xs font-semibold uppercase tracking-widest text-[#cbd5e1]">
-            Lead Analysis
+          <span className="font-sans text-xs font-bold uppercase tracking-widest text-[#cbd5e1] flex items-center gap-1.5">
+            <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+            Lead Intelligence Analysis
           </span>
           <span className="text-[#3b434e]">•</span>
           <span className="font-sans text-[11px] text-[#6e7681]">
             Strategic Highlights
           </span>
         </div>
-        <div className="font-sans text-[11px] text-[#6e7681]">
-          Editorial Lead
+        <div className="font-sans text-[11px] font-medium text-[#6e7681]">
+          Top Impact Stories
         </div>
       </div>
 
@@ -108,7 +110,7 @@ export const TopDevelopments: React.FC<TopDevelopmentsProps> = ({
             {/* Byline / Source header */}
             <div className="flex items-center justify-between gap-2 mb-2.5 text-xs">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-sans font-semibold text-xs tracking-wider uppercase text-[#f1f5f9]">
+                <span className="font-sans font-bold text-xs tracking-wider uppercase text-[#f1f5f9]">
                   {leadArticle.source}
                 </span>
                 {leadDate && (
@@ -118,8 +120,11 @@ export const TopDevelopments: React.FC<TopDevelopmentsProps> = ({
                   </>
                 )}
                 <span className="text-[#3b434e]">•</span>
-                <span className="font-sans text-[11px] uppercase tracking-wide text-[#8b949e]">
+                <span className="font-sans text-[11px] uppercase tracking-wide font-medium text-[#8b949e]">
                   {leadArticle.category}
+                </span>
+                <span className="ml-1 text-[10px] font-sans font-semibold px-2 py-0.5 rounded-full bg-amber-950/40 text-amber-300 border border-amber-800/40">
+                  Impact {leadImportance}/10
                 </span>
               </div>
 
@@ -127,7 +132,7 @@ export const TopDevelopments: React.FC<TopDevelopmentsProps> = ({
                 {onToggleBookmark && (
                   <button
                     onClick={() => onToggleBookmark(leadArticle)}
-                    className={`p-1 text-[#6e7681] hover:text-amber-200 transition-colors ${
+                    className={`p-1.5 rounded hover:bg-[#161b22] text-[#6e7681] dark:hover:text-amber-200 transition-colors cursor-pointer ${
                       isBookmarked(leadArticle) ? 'text-amber-400' : ''
                     }`}
                     title={isBookmarked(leadArticle) ? 'Remove bookmark' : 'Bookmark entry'}
@@ -138,29 +143,28 @@ export const TopDevelopments: React.FC<TopDevelopmentsProps> = ({
               </div>
             </div>
 
-            {/* Lead Story Layout: Headline + Lead Image + Summary */}
-            <div className="flex flex-col md:flex-row md:items-start gap-5 mb-3.5">
+            {/* Lead Story Layout with Visual */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-3.5">
               <div className="flex-1 min-w-0">
                 {/* Prominent Lead Headline */}
                 <h3
                   onClick={() => onSelectArticle(leadArticle)}
-                  className="cursor-pointer font-serif text-2xl sm:text-3xl font-normal text-[#f8fafc] hover:text-amber-100 transition-colors leading-[1.2] tracking-tight mb-3"
+                  className="cursor-pointer font-serif text-2xl sm:text-3xl lg:text-[28px] font-medium text-[#f8fafc] hover:text-amber-100 transition-colors leading-[1.25] tracking-tight mb-3.5"
                 >
                   {leadArticle.title}
                 </h3>
 
                 {/* Lead Summary */}
-                <p className="text-[14px] sm:text-[15px] leading-relaxed text-[#cbd5e1] font-sans mb-3 line-clamp-4">
+                <p className="text-[14px] sm:text-[15px] leading-relaxed text-[#cbd5e1] font-sans mb-3.5">
                   {leadArticle.analysis?.summary}
                 </p>
               </div>
 
-              {/* Lead Story Verified Image */}
-              <div className="w-full md:w-[260px] shrink-0">
+              {/* Lead Image Thumbnail Container */}
+              <div className="w-full sm:w-[200px] md:w-[220px] shrink-0">
                 <ArticleImage
                   article={leadArticle}
                   aspectRatio="aspect-[16/10]"
-                  priority={true}
                   onClick={() => onSelectArticle(leadArticle)}
                   className="rounded-xs shadow-md cursor-pointer w-full"
                 />
@@ -169,11 +173,11 @@ export const TopDevelopments: React.FC<TopDevelopmentsProps> = ({
 
             {/* Why It Matters: Analytical Box */}
             {leadArticle.analysis?.why_it_matters && (
-              <div className="pl-4 border-l-2 border-[#4b5563] py-1 my-3 text-xs">
-                <span className="font-sans font-semibold text-[#e2e8f0] text-[11px] uppercase tracking-wider block mb-1">
+              <div className="pl-4 border-l-2 border-[#4b5563] py-2 my-3 rounded-r text-xs">
+                <span className="font-sans font-bold text-[#e2e8f0] text-[11px] uppercase tracking-wider block mb-1">
                   Why It Matters
                 </span>
-                <p className="text-[#94a3b8] leading-relaxed italic font-serif text-sm">
+                <p className="text-[#94a3b8] leading-relaxed italic font-serif text-[14px]">
                   "{leadArticle.analysis.why_it_matters}"
                 </p>
               </div>
@@ -192,7 +196,7 @@ export const TopDevelopments: React.FC<TopDevelopmentsProps> = ({
                       {idx > 0 && <span className="text-[#3b434e]">,</span>}
                       <button
                         onClick={() => onSelectEntity && onSelectEntity(comp)}
-                        className="text-[#94a3b8] hover:text-[#f1f5f9] hover:underline transition-colors"
+                        className="text-[#94a3b8] hover:text-[#f1f5f9] hover:underline transition-colors cursor-pointer"
                       >
                         {comp}
                       </button>
@@ -208,7 +212,7 @@ export const TopDevelopments: React.FC<TopDevelopmentsProps> = ({
                       {idx > 0 && <span className="text-[#3b434e]">,</span>}
                       <button
                         onClick={() => onSelectEntity && onSelectEntity(tech)}
-                        className="text-[#8b949e] hover:text-[#f1f5f9] hover:underline transition-colors"
+                        className="text-[#8b949e] hover:text-[#f1f5f9] hover:underline transition-colors cursor-pointer"
                       >
                         {tech}
                       </button>
@@ -225,7 +229,7 @@ export const TopDevelopments: React.FC<TopDevelopmentsProps> = ({
                   href={leadArticle.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-[11px] text-[#6e7681] hover:text-[#cbd5e1] transition-colors"
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-[#6e7681] hover:text-[#cbd5e1] transition-colors"
                   title="Visit original publication"
                 >
                   <span>Source</span>
@@ -235,7 +239,7 @@ export const TopDevelopments: React.FC<TopDevelopmentsProps> = ({
 
               <button
                 onClick={() => onSelectArticle(leadArticle)}
-                className="inline-flex items-center gap-1 text-xs text-[#58a6ff] hover:text-[#79c0ff] font-medium transition-colors"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-[#58a6ff] hover:text-[#79c0ff] transition-colors cursor-pointer"
               >
                 <span>Full Dossier</span>
                 <ArrowRight className="h-3.5 w-3.5" />
@@ -248,7 +252,6 @@ export const TopDevelopments: React.FC<TopDevelopmentsProps> = ({
         <div className="lg:col-span-5 lg:border-l lg:border-[#262c35] lg:pl-8 flex flex-col justify-between space-y-6">
           {secondaryArticles.map((article, index) => {
             const dateStr = formatDate(article.published_at);
-            const imp = article.analysis?.importance ?? 8;
             return (
               <div
                 key={article.id || article.url || article.title}
@@ -259,7 +262,7 @@ export const TopDevelopments: React.FC<TopDevelopmentsProps> = ({
                 <div>
                   <div className="flex items-center justify-between text-xs mb-1.5">
                     <div className="flex items-center gap-2">
-                      <span className="font-sans font-semibold text-[11px] uppercase tracking-wider text-[#d1d5db]">
+                      <span className="font-sans font-bold text-[11px] uppercase tracking-wider text-[#d1d5db]">
                         {article.source}
                       </span>
                       {dateStr && (
@@ -271,11 +274,11 @@ export const TopDevelopments: React.FC<TopDevelopmentsProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-4 mb-2">
-                    <div className="flex-1 min-w-0">
+                  <div className="mb-2">
+                    <div className="w-full">
                       <h4
                         onClick={() => onSelectArticle(article)}
-                        className="cursor-pointer font-serif text-lg font-normal text-[#f3f4f6] hover:text-amber-100 transition-colors leading-snug tracking-tight mb-2 line-clamp-2"
+                        className="cursor-pointer font-serif text-lg font-medium text-[#f3f4f6] hover:text-amber-100 transition-colors leading-snug tracking-tight mb-2 line-clamp-2"
                       >
                         {article.title}
                       </h4>
@@ -283,15 +286,6 @@ export const TopDevelopments: React.FC<TopDevelopmentsProps> = ({
                       <p className="text-xs text-[#94a3b8] line-clamp-2 leading-relaxed font-sans mb-2">
                         {article.analysis?.summary}
                       </p>
-                    </div>
-
-                    <div className="w-24 shrink-0 hidden sm:block">
-                      <ArticleImage
-                        article={article}
-                        aspectRatio="aspect-[4/3]"
-                        onClick={() => onSelectArticle(article)}
-                        className="rounded-xs cursor-pointer w-full"
-                      />
                     </div>
                   </div>
 
@@ -320,16 +314,16 @@ export const TopDevelopments: React.FC<TopDevelopmentsProps> = ({
                     {onToggleBookmark && (
                       <button
                         onClick={() => onToggleBookmark(article)}
-                        className={`p-0.5 text-[#6e7681] hover:text-amber-200 transition-colors ${
+                        className={`p-0.5 text-[#6e7681] hover:text-amber-200 transition-colors cursor-pointer ${
                           isBookmarked(article) ? 'text-amber-400' : ''
                         }`}
                       >
-                        <Bookmark className={`h-3 w-3 ${isBookmarked(article) ? 'fill-amber-400' : ''}`} />
+                        <Bookmark className={`h-3.5 w-3.5 ${isBookmarked(article) ? 'fill-amber-400' : ''}`} />
                       </button>
                     )}
                     <button
                       onClick={() => onSelectArticle(article)}
-                      className="text-[11px] text-[#58a6ff] hover:text-[#79c0ff]"
+                      className="text-[11px] font-medium text-[#58a6ff] hover:text-[#79c0ff] cursor-pointer"
                     >
                       Full Dossier →
                     </button>
@@ -342,7 +336,7 @@ export const TopDevelopments: React.FC<TopDevelopmentsProps> = ({
           {/* Quick fast wire line items if more items exist */}
           {remainingArticles.length > 0 && (
             <div className="pt-4 border-t border-[#21262d]">
-              <div className="font-sans text-[11px] font-medium uppercase tracking-wider text-[#6e7681] mb-2">
+              <div className="font-sans text-[11px] font-bold uppercase tracking-wider text-[#6e7681] mb-2">
                 Also Notable
               </div>
               <div className="space-y-2">
