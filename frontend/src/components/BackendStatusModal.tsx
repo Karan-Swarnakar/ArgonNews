@@ -8,8 +8,7 @@ import {
   Copy,
   Check,
   RefreshCw,
-  ExternalLink,
-  BookOpen
+  BookOpen,
 } from 'lucide-react';
 import { ApiStatus } from '../types';
 import { testBackendConnection } from '../api/articles';
@@ -29,7 +28,9 @@ export const BackendStatusModal: React.FC<BackendStatusModalProps> = ({
   onToggleDataSource,
   onRefresh,
 }) => {
-  const [testUrl, setTestUrl] = useState<string>(apiStatus.endpoint.replace(/\/articles.*$/, '') || 'http://localhost:8000');
+  const [testUrl, setTestUrl] = useState<string>(
+    apiStatus.endpoint.replace(/\/articles.*$/, '') || 'http://localhost:8000'
+  );
   const [testing, setTesting] = useState<boolean>(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string; count?: number } | null>(null);
   const [copiedSnippet, setCopiedSnippet] = useState<string | null>(null);
@@ -97,90 +98,86 @@ if __name__ == "__main__":
   return (
     <div
       id="backend-status-modal-backdrop"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-xs overflow-y-auto"
       onClick={onClose}
     >
       <div
         id="backend-status-modal-card"
-        className="relative w-full max-w-2xl rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl shadow-black/80 my-8 overflow-hidden text-slate-100"
+        className="relative w-full max-w-2xl rounded border border-[#30363d] bg-[#0e1013] shadow-2xl my-6 overflow-hidden text-[#e2e8f0]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 bg-slate-950/80 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-[#22272e] bg-[#0a0c0e] px-5 py-3.5">
           <div className="flex items-center gap-2">
-            <Terminal className="h-4 w-4 text-cyan-400" />
-            <h2 className="text-sm font-bold font-mono uppercase tracking-wider text-slate-200">
-              Backend Integration & Diagnostic Hub
+            <Terminal className="h-4 w-4 text-amber-400" />
+            <h2 className="font-mono text-xs font-bold uppercase tracking-wider text-[#f0f6fc]">
+              Backend Integration & System Diagnostics
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg border border-slate-800 bg-slate-900 p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-colors"
+            className="rounded border border-[#30363d] bg-[#14161a] p-1.5 text-[#8b949e] hover:text-white transition-colors"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
 
         {/* Content Body */}
-        <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+        <div className="p-5 sm:p-6 space-y-5 max-h-[75vh] overflow-y-auto">
           
           {/* Current Status Card */}
           <div
-            className={`rounded-xl border p-4 ${
+            className={`rounded border p-4 font-mono text-xs ${
               apiStatus.isMock
-                ? 'border-amber-500/30 bg-amber-950/20'
+                ? 'border-amber-800/40 bg-amber-950/20 text-amber-200'
                 : apiStatus.connected
-                ? 'border-emerald-500/30 bg-emerald-950/20'
-                : 'border-rose-500/30 bg-rose-950/20'
+                ? 'border-emerald-800/40 bg-emerald-950/20 text-emerald-200'
+                : 'border-rose-800/40 bg-rose-950/20 text-rose-200'
             }`}
           >
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2">
                   {apiStatus.isMock ? (
-                    <span className="flex h-2.5 w-2.5 rounded-full bg-amber-400 animate-pulse" />
+                    <span className="flex h-2 w-2 rounded-full bg-amber-400" />
                   ) : apiStatus.connected ? (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                    <CheckCircle2 className="h-3.5 w-3.5 text-[#7ee787]" />
                   ) : (
-                    <AlertCircle className="h-4 w-4 text-rose-400" />
+                    <AlertCircle className="h-3.5 w-3.5 text-rose-400" />
                   )}
-                  <span className="font-mono font-bold text-sm">
+                  <span className="font-bold">
                     {apiStatus.isMock
-                      ? 'Currently Using Development Mock Data'
+                      ? 'Local Production / Demo Data'
                       : apiStatus.connected
-                      ? 'Live Python Backend Connected'
-                      : 'Backend Connection Failed'}
+                      ? 'Live Python Server Connected'
+                      : 'Backend Connection Inactive'}
                   </span>
                 </div>
-                <p className="mt-1 text-xs text-slate-300">
+                <p className="mt-1 text-[11px] text-[#8b949e] font-sans">
                   {apiStatus.isMock
-                    ? 'Displaying 5 preloaded realistic intelligence articles from src/data/mockArticles.ts.'
+                    ? 'Loading verified intelligence dispatches from public articles dataset.'
                     : apiStatus.connected
-                    ? `Successfully received ${apiStatus.articleCount} articles from ${apiStatus.endpoint}.`
-                    : apiStatus.errorMessage || 'Unable to connect to your Python server.'}
+                    ? `Active stream containing ${apiStatus.articleCount} articles from ${apiStatus.endpoint}.`
+                    : apiStatus.errorMessage || 'No response on standard localhost / remote API.'}
                 </p>
               </div>
 
               <button
                 onClick={onToggleDataSource}
-                className={`shrink-0 rounded-lg px-3 py-1.5 font-mono text-xs font-semibold transition-colors ${
-                  apiStatus.isMock
-                    ? 'bg-amber-400 text-slate-950 hover:bg-amber-300'
-                    : 'bg-cyan-500 text-slate-950 hover:bg-cyan-400'
-                }`}
+                className="shrink-0 rounded border border-[#30363d] bg-[#161b22] px-3 py-1 text-xs font-mono text-[#f0f6fc] hover:bg-[#21262d] transition-colors"
               >
-                {apiStatus.isMock ? 'Switch to Live API' : 'Switch to Mock Data'}
+                {apiStatus.isMock ? 'Switch to Live API' : 'Switch to Local Cache'}
               </button>
             </div>
           </div>
 
           {/* Test Live Backend Endpoint */}
-          <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4 space-y-3">
-            <h3 className="text-xs font-mono font-semibold uppercase tracking-wider text-slate-300">
-              Live Backend Endpoint Ping
+          <div className="rounded border border-[#22272e] bg-[#121418] p-4 space-y-3">
+            <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-[#c9d1d9]">
+              API Endpoint Verification
             </h3>
-            <p className="text-xs text-slate-400">
-              Enter your local or remote Python server address to verify if the frontend can reach <code className="text-cyan-300 font-mono">/articles</code>.
+            <p className="text-xs text-[#8b949e] font-sans">
+              Enter target Python server URL to probe connectivity:
             </p>
             <div className="flex gap-2">
               <input
@@ -188,28 +185,28 @@ if __name__ == "__main__":
                 value={testUrl}
                 onChange={(e) => setTestUrl(e.target.value)}
                 placeholder="http://localhost:8000"
-                className="flex-1 rounded-lg border border-slate-800 bg-slate-900 px-3 py-1.5 font-mono text-xs text-slate-200 focus:border-cyan-500 focus:outline-none"
+                className="flex-1 rounded border border-[#30363d] bg-[#161b22] px-3 py-1.5 font-mono text-xs text-[#f0f6fc] focus:border-[#58a6ff] focus:outline-none"
               />
               <button
                 onClick={handleTestConnection}
                 disabled={testing}
-                className="flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-950/60 px-3.5 py-1.5 text-xs font-mono text-cyan-300 hover:bg-cyan-900/60 disabled:opacity-50 transition-colors"
+                className="flex items-center gap-1.5 rounded border border-[#30363d] bg-[#1c2128] px-3 py-1.5 text-xs font-mono text-[#c9d1d9] hover:bg-[#21262d] hover:text-white disabled:opacity-50 transition-colors"
               >
                 {testing ? (
-                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                  <RefreshCw className="h-3 w-3 animate-spin text-amber-400" />
                 ) : (
-                  <Play className="h-3.5 w-3.5" />
+                  <Play className="h-3 w-3" />
                 )}
-                <span>Test Ping</span>
+                <span>Ping</span>
               </button>
             </div>
 
             {testResult && (
               <div
-                className={`rounded-lg border p-3 text-xs font-mono ${
+                className={`rounded border p-2.5 text-xs font-mono ${
                   testResult.success
-                    ? 'border-emerald-500/30 bg-emerald-950/30 text-emerald-300'
-                    : 'border-rose-500/30 bg-rose-950/30 text-rose-300'
+                    ? 'border-emerald-800/40 bg-emerald-950/30 text-[#7ee787]'
+                    : 'border-rose-800/40 bg-rose-950/30 text-rose-300'
                 }`}
               >
                 {testResult.message}
@@ -217,72 +214,39 @@ if __name__ == "__main__":
             )}
           </div>
 
-          {/* Python Backend Quickstart Snippets */}
+          {/* Python Server Snippets */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-mono font-semibold uppercase tracking-wider text-slate-300">
-                1-Minute Python Backend Code
-              </h3>
-              <span className="text-[11px] text-slate-500 font-mono">
-                Copy into your Python project directory
-              </span>
-            </div>
+            <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-[#c9d1d9]">
+              Minimal Python Server Examples
+            </h3>
 
-            {/* FastAPI Option */}
-            <div className="rounded-xl border border-slate-800 bg-slate-950 overflow-hidden">
-              <div className="flex items-center justify-between bg-slate-900/90 px-3.5 py-2 border-b border-slate-800 text-xs font-mono text-slate-300">
-                <span>Option A: FastAPI (Recommended)</span>
+            {/* FastAPI */}
+            <div className="rounded border border-[#22272e] bg-[#0c0e11] overflow-hidden">
+              <div className="flex items-center justify-between bg-[#14161a] px-3 py-1.5 border-b border-[#22272e] text-xs font-mono text-[#8b949e]">
+                <span>FastAPI Example</span>
                 <button
                   onClick={() => copyToClipboard(fastApiSnippet, 'fastapi')}
-                  className="flex items-center gap-1 text-slate-400 hover:text-cyan-300 transition-colors"
+                  className="flex items-center gap-1 hover:text-white transition-colors"
                 >
-                  {copiedSnippet === 'fastapi' ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                  {copiedSnippet === 'fastapi' ? <Check className="h-3 w-3 text-[#7ee787]" /> : <Copy className="h-3 w-3" />}
                   <span>{copiedSnippet === 'fastapi' ? 'Copied' : 'Copy'}</span>
                 </button>
               </div>
-              <pre className="p-3.5 font-mono text-[11px] text-slate-300 overflow-x-auto leading-relaxed">
+              <pre className="p-3 font-mono text-[11px] text-[#8b949e] overflow-x-auto leading-relaxed">
                 {fastApiSnippet}
               </pre>
             </div>
-
-            {/* Flask Option */}
-            <div className="rounded-xl border border-slate-800 bg-slate-950 overflow-hidden">
-              <div className="flex items-center justify-between bg-slate-900/90 px-3.5 py-2 border-b border-slate-800 text-xs font-mono text-slate-300">
-                <span>Option B: Flask</span>
-                <button
-                  onClick={() => copyToClipboard(flaskSnippet, 'flask')}
-                  className="flex items-center gap-1 text-slate-400 hover:text-cyan-300 transition-colors"
-                >
-                  {copiedSnippet === 'flask' ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-                  <span>{copiedSnippet === 'flask' ? 'Copied' : 'Copy'}</span>
-                </button>
-              </div>
-              <pre className="p-3.5 font-mono text-[11px] text-slate-300 overflow-x-auto leading-relaxed">
-                {flaskSnippet}
-              </pre>
-            </div>
-          </div>
-
-          {/* Documentation notice */}
-          <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 text-xs text-slate-400 space-y-1">
-            <div className="font-semibold text-slate-200 flex items-center gap-1.5">
-              <BookOpen className="h-4 w-4 text-cyan-400" />
-              Full Step-by-Step Guide
-            </div>
-            <p>
-              Check the generated <code className="text-cyan-300 font-mono">BACKEND_INTEGRATION.md</code> file in the project root for complete, beginner-friendly instructions covering endpoints, CORS, JSON schema, and troubleshooting.
-            </p>
           </div>
 
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end border-t border-slate-800 bg-slate-950/90 px-6 py-3.5">
+        <div className="flex items-center justify-end border-t border-[#22272e] bg-[#0a0c0e] px-5 py-3">
           <button
             onClick={onClose}
-            className="rounded-lg border border-slate-800 bg-slate-900 px-4 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+            className="rounded border border-[#30363d] bg-[#161b22] px-4 py-1.5 text-xs font-mono text-[#c9d1d9] hover:bg-[#21262d] hover:text-white transition-colors"
           >
-            Done
+            Close
           </button>
         </div>
       </div>

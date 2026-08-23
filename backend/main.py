@@ -1,58 +1,42 @@
-from collectors.website import collect_website
-from collectors.article import extract_article
-from collectors.cleaner import clean_text
-from processing.classifier import classify_article
-from sources import SOURCES
+"""
+ArgonNews Backend Main CLI
+==========================
+Unified command-line interface for running pipelines, serving the API,
+and diagnosing source connectivity.
+"""
 
-import json
-from pathlib import Path
-
-
-all_articles = []
-
-
-for source in SOURCES:
-
-    print(f"Collecting from {source['name']}...")
-
-    articles = collect_website(source)
-
-    print(f"Found {len(articles)} candidate articles")
-
-    for article in articles:
-
-        print(f"Extracting: {article['title']}")
-
-        content = extract_article(article["url"])
-
-        if content:
-            content = clean_text(content)
-            article["content"] = content
-            article["category"] = classify_article(article)
-            all_articles.append(article)
+import sys
+import argparse
+from backend.pipeline import Pipeline
+from backend.sources import SOURCES, get_enabled_sources
+from backend.server import run_server
 
 
+def main():
+    parser = argparse.ArgumentParser(description="ArgonNews AI Intelligence Backend")
+    parser.add_argument("--run-pipeline", action="store_true", help="Run ingestion and analysis pipeline")
+    parser.add_argument("--serve", action="store_true", help="Start the REST API server")
+    parser.add_argument("--port", type=int, default=8000, help="Port for the API server")
+    parser.add_argument("--list-sources", action="store_true", help="List all configured sources")
 
-unique_articles = {}
+    args = parser.parse_args()
 
-for article in all_articles:
-    unique_articles[article["url"]] = article
+    if args.list_sources:
+        print("\n=== Configured ArgonNews Sources ===")
+        for s in SOURCES:
+            status = "ENABLED" if s.get("enabled", True) else "DISABLED"
+            print(f"[{status:8s}] {s['name']:32s} | Type: {s['source_type']:10s} | Collector: {s['collector_type']:6s} | {s['url']}")
+        print(f"\nTotal: {len(SOURCES)} sources ({len(get_enabled_sources())} enabled)")
+        return
 
-all_articles = list(unique_articles.values())
+    if args.serve:
+        run_server(args.port)
+        return
 
-print(f"Unique articles: {len(all_articles)}")
+    # Default action: run pipeline
+    pipeline = Pipeline()
+    pipeline.run()
 
 
-
-
-output_file = Path(__file__).resolve().parent.parent / "articles.json"
-
-with open(output_file, "w", encoding="utf-8") as file:
-    json.dump(
-        all_articles,
-        file,
-        indent=4,
-        ensure_ascii=False
-    )
-
-print("Saved articles to articles.json")
+if __name__ == "__main__":
+    main()

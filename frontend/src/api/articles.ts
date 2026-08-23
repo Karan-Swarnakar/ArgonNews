@@ -26,10 +26,8 @@ import { MOCK_ARTICLES } from '../data/mockArticles';
 // Read configuration from environment variables with safe defaults
 export const API_BASE_URL: string = '';
 
-// Default mock state from environment variable
-export const DEFAULT_USE_MOCK: boolean =
-  import.meta.env.VITE_USE_MOCK === 'true' ||
-  import.meta.env.VITE_USE_MOCK === undefined;
+// Default mock state is strictly false. Real articles.json dataset is the production default.
+export const DEFAULT_USE_MOCK: boolean = import.meta.env.VITE_USE_MOCK === 'true';
 
 export interface FetchArticlesResult {
   articles: Article[];
@@ -133,7 +131,11 @@ export async function getArticles(
   // - ${baseUrl}/articles
   // - ${baseUrl}/api/articles
   // - ${baseUrl}/articles.json
-  const endpointsToTry = ['/articles.json'];
+  const endpointsToTry = [
+    '/articles.json',
+    './articles.json',
+    `${baseUrl ? baseUrl.replace(/\/$/, '') : ''}/articles.json`
+  ].filter((v, i, a) => v && a.indexOf(v) === i);
 
   let lastError: Error | null = null;
 

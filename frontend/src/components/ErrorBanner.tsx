@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, RefreshCw, Radio, Terminal } from 'lucide-react';
+import { AlertCircle, RefreshCw, Radio, Terminal } from 'lucide-react';
 
 interface ErrorBannerProps {
   errorMessage: string;
@@ -15,47 +15,42 @@ export const ErrorBanner: React.FC<ErrorBannerProps> = ({
   onOpenDiagnostics,
 }) => {
   return (
-    <div className="mb-6 rounded-xl border border-rose-500/30 bg-rose-950/30 p-4 sm:p-5 text-slate-100 shadow-lg shadow-rose-950/30">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="rounded-lg bg-rose-500/20 p-2 text-rose-400 shrink-0 mt-0.5">
-            <AlertTriangle className="h-5 w-5" />
-          </div>
+    <div className="mb-6 rounded border border-rose-900/50 bg-[#161214] p-4 text-[#e2e8f0]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono text-xs">
+        <div className="flex items-start gap-2.5">
+          <AlertCircle className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" />
           <div>
-            <h3 className="font-semibold text-sm sm:text-base text-rose-200">
-              Backend Connection Notice
-            </h3>
-            <p className="mt-1 text-xs sm:text-sm text-slate-300">
+            <span className="font-bold text-rose-200 uppercase tracking-wide">
+              Live Wire Disconnected
+            </span>
+            <p className="mt-0.5 text-[#8b949e] font-sans">
               {errorMessage}
-            </p>
-            <p className="mt-1 text-xs text-rose-300/80 font-mono">
-              Tip: Is your Python server running and CORS enabled? You can switch to Mock Data to explore the UI immediately.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap sm:shrink-0">
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
           <button
             onClick={onRetry}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-800 transition-colors"
+            className="flex items-center gap-1 rounded border border-[#30363d] bg-[#161b22] px-2.5 py-1 text-xs text-[#c9d1d9] hover:bg-[#21262d] transition-colors"
           >
-            <RefreshCw className="h-3.5 w-3.5" />
+            <RefreshCw className="h-3 w-3" />
             <span>Retry</span>
           </button>
           
           <button
             onClick={onUseMock}
-            className="flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/20 px-3 py-1.5 text-xs font-mono font-semibold text-amber-200 hover:bg-amber-500/30 transition-colors"
+            className="flex items-center gap-1 rounded border border-amber-800/60 bg-amber-950/30 px-2.5 py-1 text-xs text-amber-200 hover:bg-amber-900/40 transition-colors"
           >
-            <Radio className="h-3.5 w-3.5" />
-            <span>Switch to Mock Data</span>
+            <Radio className="h-3 w-3" />
+            <span>Use Local Cache</span>
           </button>
 
           <button
             onClick={onOpenDiagnostics}
-            className="flex items-center gap-1.5 rounded-lg border border-cyan-500/40 bg-cyan-950/60 px-3 py-1.5 text-xs font-mono text-cyan-300 hover:bg-cyan-900/60 transition-colors"
+            className="flex items-center gap-1 rounded border border-[#30363d] bg-[#161b22] px-2.5 py-1 text-xs text-[#8b949e] hover:text-white transition-colors"
           >
-            <Terminal className="h-3.5 w-3.5" />
+            <Terminal className="h-3 w-3" />
             <span>Diagnostics</span>
           </button>
         </div>

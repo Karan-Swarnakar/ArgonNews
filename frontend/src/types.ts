@@ -19,10 +19,20 @@ export interface Article {
   source: string;
   source_type?: string;
   reliability?: number; // 0.0 to 1.0
-  content?: string; // Raw scraped text (not shown by default, available on demand)
+  content?: string; // Raw scraped text (available on demand in dossier)
   category: string;
-  published_at?: string; // ISO string or human readable date if present
+  published_at?: string; // ISO string or human readable date
   analysis: ArticleAnalysis;
+  image_url?: string;
+  image_source?: string;
+  image_license?: string;
+  image_credit?: string;
+  image_alt?: string;
+  other_sources?: Array<{
+    source: string;
+    url: string;
+    title: string;
+  }>;
 }
 
 export type CategoryFilter =
@@ -32,16 +42,21 @@ export type CategoryFilter =
   | 'Models'
   | 'Open Source'
   | 'Business'
-  | 'Safety & Policy';
+  | 'Safety & Policy'
+  | 'Saved';
 
-export type SortOption = 'importance-desc' | 'newest' | 'importance-asc' | 'source-asc';
+export type SortOption = 'newest' | 'importance-desc';
+
+export type ViewMode = 'editorial' | 'dense' | 'magazine';
 
 export interface FilterState {
   category: CategoryFilter;
   searchQuery: string;
   minImportance: number; // 0 (all), 7 (high), 8 (very high), 9 (critical)
   source: string; // 'all' or specific source
+  selectedEntity?: string; // Filter by company / lab / technology
   sortBy: SortOption;
+  viewMode: ViewMode;
 }
 
 export interface ApiStatus {

@@ -1,19 +1,12 @@
 venv/
-
 __pycache__/
-
 *.pyc
-
 .env
-
 .DS_Store
-
 articles.json
-
-# Dependencies
-
 node_modules/
-
-# Build output
-
 dist/
+.wrangler/
+node_modules/
+frontend/.wrangler/
+frontend/dist/
