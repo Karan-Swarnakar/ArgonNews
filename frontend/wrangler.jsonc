@@ -1,8 +1,22 @@
 {
+  "$schema": "node_modules/wrangler/config-schema.json",
   "name": "argonnews",
+  "main": "src/worker/index.ts",
   "compatibility_date": "2026-08-16",
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": "./dist",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "argonnews-db",
+      "database_id": "argonnews-db-id"
+    }
+  ],
+  "triggers": {
+    "crons": ["*/30 * * * *"]
   }
 }

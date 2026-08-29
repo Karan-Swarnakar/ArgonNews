@@ -13,9 +13,9 @@ import { ArticleDetailModal } from './components/ArticleDetailModal';
 import { BackendStatusModal } from './components/BackendStatusModal';
 import { ErrorBanner } from './components/ErrorBanner';
 import { LoadingSkeleton } from './components/LoadingSkeleton';
-import { getArticles, getCategories, getSources, API_BASE_URL, DEFAULT_USE_MOCK } from './api/articles';
+import { getArticles, getCategories, getSources, checkForNewArticles, API_BASE_URL, DEFAULT_USE_MOCK } from './api/articles';
 import { Article, CategoryFilter, FilterState, ApiStatus } from './types';
-import { Terminal, Shield, Sparkles, ExternalLink, Bookmark, Activity, Building2 } from 'lucide-react';
+import { Terminal, Shield, Sparkles, ExternalLink, Bookmark, Activity, Building2, ArrowUpCircle } from 'lucide-react';
 
 const SAVED_STORAGE_KEY = 'argon_saved_article_ids';
 
@@ -43,6 +43,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState<boolean>(false);
   const [useMock, setUseMock] = useState<boolean>(DEFAULT_USE_MOCK);
+  const [newAvailableArticles, setNewAvailableArticles] = useState<number>(0);
   
   // Bookmarked article IDs persisted in browser localStorage
   const [savedArticleIds, setSavedArticleIds] = useState<Set<string | number>>(() => {
@@ -108,6 +109,31 @@ export default function App() {
   useEffect(() => {
     loadArticles(useMock);
   }, [useMock, loadArticles]);
+
+  // Periodic background check for newly published articles (every 5 minutes)
+  useEffect(() => {
+    if (useMock) return;
+
+    const checkInterval = setInterval(async () => {
+      try {
+        const latestTimestamp = articles[0]?.published_at || null;
+        const result = await checkForNewArticles(latestTimestamp);
+        if (result.hasNew && result.newCount > 0) {
+          setNewAvailableArticles(result.newCount);
+        }
+      } catch {
+        // Quiet failure in background without disrupting reader
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(checkInterval);
+  }, [useMock, articles]);
+
+  // Apply new live updates to feed without losing scroll context
+  const handleApplyNewArticles = async () => {
+    setNewAvailableArticles(0);
+    await loadArticles(useMock);
+  };
 
   // Toggle bookmark helper
   const handleToggleBookmark = useCallback((article: Article) => {
@@ -446,6 +472,30 @@ export default function App() {
           <LoadingSkeleton />
         ) : (
           <>
+            {/* Live New Updates Pill Banner */}
+            {newAvailableArticles > 0 && (
+              <div className="mb-5">
+                <button
+                  onClick={handleApplyNewArticles}
+                  className="w-full flex items-center justify-between px-4 py-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-200 hover:bg-amber-500/20 hover:border-amber-500/50 transition-all cursor-pointer shadow-lg shadow-amber-950/20 text-xs sm:text-sm group"
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                    </span>
+                    <span className="font-sans">
+                      <strong>{newAvailableArticles} new intelligence dispatch{newAvailableArticles === 1 ? '' : 'es'}</strong> ready
+                    </span>
+                  </span>
+                  <span className="flex items-center gap-1.5 font-mono text-[11px] bg-amber-500/20 px-2.5 py-1 rounded border border-amber-500/40 text-amber-300 group-hover:bg-amber-500/30 transition-colors">
+                    <span>Load updates</span>
+                    <ArrowUpCircle className="h-3.5 w-3.5" />
+                  </span>
+                </button>
+              </div>
+            )}
+
             {/* Top Critical Developments Section */}
             {topDevelopments.length > 0 && (
               <TopDevelopments
