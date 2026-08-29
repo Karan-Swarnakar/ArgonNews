@@ -20,6 +20,7 @@ export interface Fetcher {
 }
 
 export interface Env {
+  argonnews_db?: D1Database;
   DB?: D1Database;
   ASSETS?: Fetcher;
   CRON_SECRET?: string;

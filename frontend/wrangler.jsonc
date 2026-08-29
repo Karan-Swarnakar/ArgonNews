@@ -11,9 +11,9 @@
   },
   "d1_databases": [
     {
-      "binding": "DB",
+      "binding": "argonnews_db",
       "database_name": "argonnews-db",
-      "database_id": "argonnews-db-id"
+      "database_id": "7723d17b-701c-4095-8b99-2f4441ae7190"
     }
   ],
   "triggers": {

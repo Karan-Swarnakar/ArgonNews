@@ -1,6 +1,6 @@
 /**
  * ArgonNews - Cloudflare Worker Entry Point
- * Handles API requests, asset routing, and scheduled cron ingestion.
+ * Handles API requests, asset routing, and autonomous scheduled cron ingestion.
  */
 
 import { Env, ScheduledEvent, ExecutionContext } from './types';
@@ -31,6 +31,7 @@ export default {
    */
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+    const db = env.argonnews_db || env.DB;
 
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
@@ -42,15 +43,19 @@ export default {
       try {
         const category = url.searchParams.get('category') || undefined;
         const source = url.searchParams.get('source') || undefined;
+        const sortBy = (url.searchParams.get('sortBy') as 'newest' | 'importance-desc') || 'newest';
+        const search = url.searchParams.get('search') || url.searchParams.get('q') || undefined;
         const limit = parseInt(url.searchParams.get('limit') || '120', 10);
         const offset = parseInt(url.searchParams.get('offset') || '0', 10);
         const minImportance = parseInt(url.searchParams.get('minImportance') || '0', 10);
         const since = url.searchParams.get('since') || undefined;
 
-        if (env.DB) {
-          const { articles, total } = await getArticlesFromD1(env.DB, {
+        if (db) {
+          const { articles, total } = await getArticlesFromD1(db, {
             category,
             source,
+            sortBy,
+            search,
             limit,
             offset,
             minImportance,
@@ -59,13 +64,13 @@ export default {
 
           // If database is empty, auto-seed with verified baseline
           if (total === 0 && (!category || category === 'All') && !source) {
-            ctx.waitUntil(batchInsertArticlesToD1(env.DB, MOCK_ARTICLES));
+            ctx.waitUntil(batchInsertArticlesToD1(db, MOCK_ARTICLES));
             return jsonResponse(
               {
                 articles: MOCK_ARTICLES.slice(offset, offset + limit),
                 total: MOCK_ARTICLES.length,
                 isLive: true,
-                source: 'Cloudflare D1 (Auto-Seeded)',
+                source: 'Cloudflare D1 (Auto-Seeded Baseline)',
                 lastUpdated: new Date().toISOString(),
               },
               200,
@@ -80,7 +85,7 @@ export default {
               articles,
               total,
               isLive: true,
-              source: 'Cloudflare D1 Database',
+              source: 'Cloudflare D1 Database (argonnews-db)',
               lastUpdated: new Date().toISOString(),
             },
             200,
@@ -90,7 +95,7 @@ export default {
           );
         }
 
-        // Fallback if D1 binding is not configured
+        // Fallback if D1 binding is not yet attached
         return jsonResponse(
           {
             articles: MOCK_ARTICLES.slice(0, limit),
@@ -104,7 +109,7 @@ export default {
       } catch (err: any) {
         return jsonResponse(
           {
-            error: err.message || 'Failed to query articles',
+            error: err.message || 'Failed to query articles from D1',
             articles: MOCK_ARTICLES.slice(0, 100),
             total: MOCK_ARTICLES.length,
             isLive: false,
@@ -114,40 +119,53 @@ export default {
       }
     }
 
-    // 2. GET /api/latest-check - Lightweight client polling endpoint
+    // 2. GET /api/latest-check - Lightweight non-disruptive polling endpoint
     if (url.pathname === '/api/latest-check') {
       try {
         const since = url.searchParams.get('since');
-        if (env.DB) {
-          const info = await getLatestArticleInfo(env.DB);
+        if (db) {
+          const info = await getLatestArticleInfo(db);
           let newArticlesCount = 0;
 
           if (since && info.latestPublishedAt) {
             const sinceDate = new Date(since).getTime();
             const latestDate = new Date(info.latestPublishedAt).getTime();
             if (latestDate > sinceDate) {
-              const res = await env.DB.prepare('SELECT COUNT(*) as c FROM articles WHERE published_at > ?')
+              const res = await db
+                .prepare('SELECT COUNT(*) as c FROM articles WHERE published_at > ?')
                 .bind(since)
                 .first<{ c: number }>();
               newArticlesCount = res?.c ?? 1;
             }
           }
 
-          return jsonResponse({
-            latestPublishedAt: info.latestPublishedAt,
-            totalCount: info.count,
-            hasNew: newArticlesCount > 0,
-            newCount: newArticlesCount,
-            checkedAt: new Date().toISOString(),
-          });
+          return jsonResponse(
+            {
+              latestPublishedAt: info.latestPublishedAt,
+              totalCount: info.count,
+              hasNew: newArticlesCount > 0,
+              newCount: newArticlesCount,
+              checkedAt: new Date().toISOString(),
+            },
+            200,
+            {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+            }
+          );
         }
 
-        return jsonResponse({
-          latestPublishedAt: new Date().toISOString(),
-          totalCount: MOCK_ARTICLES.length,
-          hasNew: false,
-          newCount: 0,
-        });
+        return jsonResponse(
+          {
+            latestPublishedAt: new Date().toISOString(),
+            totalCount: MOCK_ARTICLES.length,
+            hasNew: false,
+            newCount: 0,
+          },
+          200,
+          {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+          }
+        );
       } catch (err: any) {
         return jsonResponse({ error: err.message, hasNew: false }, 500);
       }
@@ -180,15 +198,16 @@ export default {
     if (url.pathname === '/api/status' || url.pathname === '/api/health') {
       try {
         let dbStats = null;
-        if (env.DB) {
-          dbStats = await getDbStats(env.DB);
+        if (db) {
+          dbStats = await getDbStats(db);
         }
 
         return jsonResponse({
           status: 'ok',
           service: 'ArgonNews Autonomous Engine',
-          version: '3.0.0',
+          version: '3.1.0',
           cronSchedule: '*/30 * * * * (Every 30 minutes)',
+          d1Binding: env.argonnews_db ? 'argonnews_db' : env.DB ? 'DB' : 'none',
           database: dbStats || { connected: false, message: 'D1 binding not initialized' },
           timestamp: new Date().toISOString(),
         });
@@ -200,10 +219,10 @@ export default {
     // 5. POST /api/seed - Seed D1 with Verified Baseline
     if (url.pathname === '/api/seed') {
       try {
-        if (!env.DB) {
+        if (!db) {
           return jsonResponse({ error: 'D1 database binding not found' }, 500);
         }
-        const inserted = await batchInsertArticlesToD1(env.DB, MOCK_ARTICLES);
+        const inserted = await batchInsertArticlesToD1(db, MOCK_ARTICLES);
         return jsonResponse({
           message: `Successfully seeded baseline archive into Cloudflare D1.`,
           inserted,

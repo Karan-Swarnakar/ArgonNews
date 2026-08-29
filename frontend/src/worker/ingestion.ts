@@ -16,7 +16,36 @@ import {
 import { D1Database, Env } from './types';
 import { batchInsertArticlesToD1 } from './db';
 
-const BOT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 (ArgonNewsBot/3.0; +https://argonnews.org)';
+const BOT_USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 (ArgonNewsAutonomousBot/3.1; +https://argonnews.org)';
+
+/**
+ * Extracts candidate image URL from XML item block or HTML content.
+ */
+function extractImageUrl(block: string): string | undefined {
+  // 1. Check media:content or media:thumbnail
+  const mediaMatch =
+    block.match(/<media:content[^>]+url=["']([^"']+)["']/i) ||
+    block.match(/<media:thumbnail[^>]+url=["']([^"']+)["']/i);
+  if (mediaMatch && mediaMatch[1] && mediaMatch[1].startsWith('http')) {
+    return mediaMatch[1].trim();
+  }
+
+  // 2. Check enclosure of image type
+  const enclosureMatch = block.match(/<enclosure[^>]+url=["']([^"']+)["'][^>]+type=["']image\/[^"']+["']/i) ||
+    block.match(/<enclosure[^>]+type=["']image\/[^"']+["'][^>]+url=["']([^"']+)["']/i);
+  if (enclosureMatch && enclosureMatch[1] && enclosureMatch[1].startsWith('http')) {
+    return enclosureMatch[1].trim();
+  }
+
+  // 3. Check <img> tag inside description or content
+  const imgMatch = block.match(/<img[^>]+src=["'](https?:\/\/[^"'\s>]+)["']/i);
+  if (imgMatch && imgMatch[1]) {
+    return imgMatch[1].trim();
+  }
+
+  return undefined;
+}
 
 /**
  * Parses RSS / Atom XML string into normalized Article objects.
@@ -24,6 +53,7 @@ const BOT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/53
 export function parseRssOrAtomXml(xml: string, sourceDef: SourceDefinition): Article[] {
   const articles: Article[] = [];
   const itemMatches = xml.match(/<item[\s\S]*?<\/item>|<entry[\s\S]*?<\/entry>/gi) || [];
+  const now = new Date().toISOString();
 
   for (const block of itemMatches) {
     try {
@@ -49,20 +79,23 @@ export function parseRssOrAtomXml(xml: string, sourceDef: SourceDefinition): Art
         url = sourceDef.url;
       }
 
-      // 3. Extract Published Date
+      // 3. Extract Published Date (RFC 2822, Atom ISO, dc:date, etc.)
       const dateMatch = block.match(
-        /<(?:pubDate|published|updated|dc:date)(?:[^>]*)>([\s\S]*?)<\/(?:pubDate|published|updated|dc:date)>/i
+        /<(?:pubDate|published|updated|dc:date|atom:published|atom:updated|date|lastBuildDate)(?:[^>]*)>([\s\S]*?)<\/(?:pubDate|published|updated|dc:date|atom:published|atom:updated|date|lastBuildDate)>/i
       );
-      const published_at =
-        normalizeDate(dateMatch ? dateMatch[1] : undefined) || new Date().toISOString();
+      
+      const parsedPubDate = dateMatch ? normalizeDate(dateMatch[1]) : undefined;
+      // If the feed gave a valid date, use it; otherwise, use discovered timestamp
+      const published_at = parsedPubDate || now;
+      const discovered_at = now;
 
       // 4. Extract Description / Content
       const descMatch = block.match(
         /<(?:description|summary|content|content:encoded)(?:[^>]*)>([\s\S]*?)<\/(?:description|summary|content|content:encoded)>/i
       );
       let rawDesc = descMatch ? decodeHtmlEntities(descMatch[1]) : '';
-      if (rawDesc.length > 600) {
-        rawDesc = rawDesc.slice(0, 580) + '...';
+      if (rawDesc.length > 800) {
+        rawDesc = rawDesc.slice(0, 780) + '...';
       }
 
       const summary = rawDesc || `${sourceDef.name} dispatch on ${title}.`;
@@ -75,6 +108,7 @@ export function parseRssOrAtomXml(xml: string, sourceDef: SourceDefinition): Art
 
       const importance = computeImportance(title, summary, sourceDef.reliability);
       const id = generateArticleSlug(sourceDef.id, url, title);
+      const imageUrl = extractImageUrl(block);
 
       const why_it_matters = `Key breakthrough in ${category.toLowerCase()} and frontier computing with direct implications for ${
         technologies[0] || 'foundation model deployment'
@@ -90,6 +124,7 @@ export function parseRssOrAtomXml(xml: string, sourceDef: SourceDefinition): Art
         category,
         published_at,
         content: rawDesc || summary,
+        image_url: imageUrl,
         analysis: {
           summary: summary.length > 260 ? summary.slice(0, 250) + '...' : summary,
           why_it_matters,
@@ -117,7 +152,7 @@ export function parseRssOrAtomXml(xml: string, sourceDef: SourceDefinition): Art
 async function fetchArxivPapers(sourceDef: SourceDefinition): Promise<Article[]> {
   try {
     const url =
-      'https://export.arxiv.org/api/query?search_query=cat:cs.AI+OR+cat:cs.LG+OR+cat:cs.CL&sortBy=submittedDate&sortOrder=descending&max_results=35';
+      'https://export.arxiv.org/api/query?search_query=cat:cs.AI+OR+cat:cs.LG+OR+cat:cs.CL&sortBy=submittedDate&sortOrder=descending&max_results=40';
     const res = await fetch(url, {
       headers: { 'User-Agent': BOT_USER_AGENT },
       signal: AbortSignal.timeout(9000),
@@ -188,6 +223,7 @@ export async function runIngestionPipeline(
 ): Promise<IngestionResult> {
   const startedAt = new Date().toISOString();
   const errors: string[] = [];
+  const db = env.argonnews_db || env.DB;
 
   let targetSources = AI_SOURCES.filter((s) => s.feed_url || s.id === 'arxiv-ai');
   if (specificSourceId) {
@@ -220,16 +256,16 @@ export async function runIngestionPipeline(
   let articlesInserted = 0;
 
   // Insert into Cloudflare D1 if binding exists
-  if (env.DB && allFoundArticles.length > 0) {
+  if (db && allFoundArticles.length > 0) {
     try {
-      articlesInserted = await batchInsertArticlesToD1(env.DB, allFoundArticles);
+      articlesInserted = await batchInsertArticlesToD1(db, allFoundArticles);
     } catch (err: any) {
       errors.push(`D1 Batch Insert Error: ${err.message}`);
     }
 
     // Record audit log
     try {
-      await env.DB.prepare(`
+      await db.prepare(`
         INSERT INTO ingestion_logs (
           started_at, completed_at, sources_attempted,
           sources_succeeded, articles_found, articles_inserted,

@@ -13,17 +13,23 @@ export interface ArticleDbRow {
   source: string;
   source_type: string | null;
   reliability: number | null;
+  content: string | null;
   category: string;
   published_at: string;
+  discovered_at: string | null;
   collected_at: string;
-  content: string | null;
+  analysis: string | null;
   summary: string | null;
   why_it_matters: string | null;
   importance: number | null;
   companies: string | null;
   technologies: string | null;
-  content_hash: string | null;
   image_url: string | null;
+  image_source: string | null;
+  image_license: string | null;
+  image_credit: string | null;
+  image_alt: string | null;
+  content_hash: string | null;
   other_sources: string | null;
 }
 
@@ -31,20 +37,33 @@ export interface ArticleDbRow {
  * Converts a database row into the Article interface required by the ArgonNews frontend.
  */
 export function rowToArticle(row: ArticleDbRow): Article {
-  let companies: string[] = [];
-  let technologies: string[] = [];
-  let otherSources: any[] = [];
-
-  try {
-    if (row.companies) companies = JSON.parse(row.companies);
-  } catch {
-    companies = [];
+  let analysisObj: any = null;
+  if (row.analysis) {
+    try {
+      analysisObj = JSON.parse(row.analysis);
+    } catch {
+      analysisObj = null;
+    }
   }
 
-  try {
-    if (row.technologies) technologies = JSON.parse(row.technologies);
-  } catch {
-    technologies = [];
+  let companies: string[] = analysisObj?.companies || [];
+  let technologies: string[] = analysisObj?.technologies || [];
+  let otherSources: any[] = [];
+
+  if (companies.length === 0 && row.companies) {
+    try {
+      companies = JSON.parse(row.companies);
+    } catch {
+      companies = [];
+    }
+  }
+
+  if (technologies.length === 0 && row.technologies) {
+    try {
+      technologies = JSON.parse(row.technologies);
+    } catch {
+      technologies = [];
+    }
   }
 
   try {
@@ -54,10 +73,18 @@ export function rowToArticle(row: ArticleDbRow): Article {
   }
 
   const title = decodeHtmlEntities(row.title);
-  const summary = decodeHtmlEntities(row.summary || 'Summary pending.');
-  const whyItMatters = decodeHtmlEntities(
-    row.why_it_matters || 'Strategic implications under analysis.'
+  const summary = decodeHtmlEntities(
+    analysisObj?.summary || row.summary || 'Summary pending analysis.'
   );
+  const whyItMatters = decodeHtmlEntities(
+    analysisObj?.why_it_matters || row.why_it_matters || 'Strategic implications under analysis.'
+  );
+  const importance =
+    typeof analysisObj?.importance === 'number'
+      ? analysisObj.importance
+      : typeof row.importance === 'number'
+      ? row.importance
+      : 5;
 
   return {
     id: row.id,
@@ -70,12 +97,16 @@ export function rowToArticle(row: ArticleDbRow): Article {
     published_at: row.published_at,
     content: row.content ? decodeHtmlEntities(row.content) : undefined,
     image_url: row.image_url || undefined,
+    image_source: row.image_source || undefined,
+    image_license: row.image_license || undefined,
+    image_credit: row.image_credit || undefined,
+    image_alt: row.image_alt || undefined,
     other_sources: otherSources.length > 0 ? otherSources : undefined,
     analysis: {
       summary,
       why_it_matters: whyItMatters,
-      importance: row.importance ?? 5,
-      category: row.category,
+      importance,
+      category: analysisObj?.category || row.category,
       companies,
       technologies,
     },
@@ -85,6 +116,8 @@ export function rowToArticle(row: ArticleDbRow): Article {
 export interface GetArticlesQueryOptions {
   category?: string;
   source?: string;
+  sortBy?: 'newest' | 'importance-desc';
+  search?: string;
   limit?: number;
   offset?: number;
   minImportance?: number;
@@ -92,13 +125,13 @@ export interface GetArticlesQueryOptions {
 }
 
 /**
- * Retrieves articles sorted strictly newest first (published_at DESC, collected_at DESC).
+ * Retrieves articles sorted strictly newest first by default (published_at DESC, collected_at DESC).
  */
 export async function getArticlesFromD1(
   db: D1Database,
   options: GetArticlesQueryOptions = {}
 ): Promise<{ articles: Article[]; total: number }> {
-  const limit = Math.min(250, Math.max(1, options.limit || 100));
+  const limit = Math.min(300, Math.max(1, options.limit || 120));
   const offset = Math.max(0, options.offset || 0);
 
   const conditions: string[] = [];
@@ -124,6 +157,12 @@ export async function getArticlesFromD1(
     params.push(options.since);
   }
 
+  if (options.search && options.search.trim().length > 0) {
+    conditions.push('(title LIKE ? OR summary LIKE ? OR content LIKE ?)');
+    const searchPattern = `%${options.search.trim()}%`;
+    params.push(searchPattern, searchPattern, searchPattern);
+  }
+
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   // Get total count
@@ -132,11 +171,17 @@ export async function getArticlesFromD1(
   const countResult = await (params.length > 0 ? countStmt.bind(...params) : countStmt).first<{ count: number }>();
   const total = countResult?.count ?? 0;
 
-  // Get articles sorted newest first
+  // Determine sort order
+  let orderByClause = 'ORDER BY published_at DESC, collected_at DESC';
+  if (options.sortBy === 'importance-desc') {
+    orderByClause = 'ORDER BY importance DESC, published_at DESC';
+  }
+
+  // Get articles sorted
   const selectQuery = `
     SELECT * FROM articles
     ${whereClause}
-    ORDER BY published_at DESC, collected_at DESC
+    ${orderByClause}
     LIMIT ? OFFSET ?
   `;
   const selectStmt = db.prepare(selectQuery).bind(...params, limit, offset);
@@ -154,14 +199,16 @@ export async function insertArticleToD1(db: D1Database, article: Article): Promi
   const query = `
     INSERT OR IGNORE INTO articles (
       id, url, title, source, source_type, reliability,
-      category, published_at, collected_at, content,
-      summary, why_it_matters, importance,
-      companies, technologies, content_hash, image_url, other_sources
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      content, category, published_at, discovered_at, collected_at,
+      analysis, summary, why_it_matters, importance,
+      companies, technologies, image_url, image_source,
+      image_license, image_credit, image_alt, content_hash, other_sources
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const now = new Date().toISOString();
   const publishedAt = article.published_at || now;
+  const analysisJson = JSON.stringify(article.analysis || {});
   const companiesJson = JSON.stringify(article.analysis?.companies || []);
   const technologiesJson = JSON.stringify(article.analysis?.technologies || []);
   const otherSourcesJson = JSON.stringify(article.other_sources || []);
@@ -173,17 +220,23 @@ export async function insertArticleToD1(db: D1Database, article: Article): Promi
     article.source,
     article.source_type || 'Lab / Research',
     article.reliability ?? 0.95,
+    article.content ? decodeHtmlEntities(article.content) : null,
     article.category || article.analysis?.category || 'Research',
     publishedAt,
     now,
-    article.content ? decodeHtmlEntities(article.content) : null,
+    now,
+    analysisJson,
     decodeHtmlEntities(article.analysis?.summary || ''),
     decodeHtmlEntities(article.analysis?.why_it_matters || ''),
     article.analysis?.importance ?? 5,
     companiesJson,
     technologiesJson,
-    article.url,
     article.image_url || null,
+    article.image_source || null,
+    article.image_license || null,
+    article.image_credit || null,
+    article.image_alt || null,
+    article.url,
     otherSourcesJson
   );
 
@@ -202,11 +255,18 @@ export async function batchInsertArticlesToD1(db: D1Database, articles: Article[
     const query = `
       INSERT OR IGNORE INTO articles (
         id, url, title, source, source_type, reliability,
-        category, published_at, collected_at, content,
-        summary, why_it_matters, importance,
-        companies, technologies, content_hash, image_url, other_sources
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        content, category, published_at, discovered_at, collected_at,
+        analysis, summary, why_it_matters, importance,
+        companies, technologies, image_url, image_source,
+        image_license, image_credit, image_alt, content_hash, other_sources
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
+
+    const publishedAt = article.published_at || now;
+    const analysisJson = JSON.stringify(article.analysis || {});
+    const companiesJson = JSON.stringify(article.analysis?.companies || []);
+    const technologiesJson = JSON.stringify(article.analysis?.technologies || []);
+    const otherSourcesJson = JSON.stringify(article.other_sources || []);
 
     return db.prepare(query).bind(
       String(article.id || `art-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
@@ -215,18 +275,24 @@ export async function batchInsertArticlesToD1(db: D1Database, articles: Article[
       article.source,
       article.source_type || 'Lab / Research',
       article.reliability ?? 0.95,
-      article.category || article.analysis?.category || 'Research',
-      article.published_at || now,
-      now,
       article.content ? decodeHtmlEntities(article.content) : null,
+      article.category || article.analysis?.category || 'Research',
+      publishedAt,
+      now,
+      now,
+      analysisJson,
       decodeHtmlEntities(article.analysis?.summary || ''),
       decodeHtmlEntities(article.analysis?.why_it_matters || ''),
       article.analysis?.importance ?? 5,
-      JSON.stringify(article.analysis?.companies || []),
-      JSON.stringify(article.analysis?.technologies || []),
-      article.url,
+      companiesJson,
+      technologiesJson,
       article.image_url || null,
-      JSON.stringify(article.other_sources || [])
+      article.image_source || null,
+      article.image_license || null,
+      article.image_credit || null,
+      article.image_alt || null,
+      article.url,
+      otherSourcesJson
     );
   });
 
