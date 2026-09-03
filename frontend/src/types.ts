@@ -22,6 +22,8 @@ export interface Article {
   content?: string; // Raw scraped text (available on demand in dossier)
   category: string;
   published_at?: string; // ISO string or human readable date
+  discovered_at?: string; // Ingestion discovery timestamp
+  updated_at?: string; // Last metadata update timestamp
   analysis: ArticleAnalysis;
   image_url?: string;
   image_source?: string;

@@ -17,6 +17,7 @@ export interface ArticleDbRow {
   category: string;
   published_at: string;
   discovered_at: string | null;
+  updated_at: string | null;
   collected_at: string;
   analysis: string | null;
   summary: string | null;
@@ -95,6 +96,8 @@ export function rowToArticle(row: ArticleDbRow): Article {
     reliability: row.reliability ?? 0.95,
     category: row.category,
     published_at: row.published_at,
+    discovered_at: row.discovered_at || undefined,
+    updated_at: row.updated_at || undefined,
     content: row.content ? decodeHtmlEntities(row.content) : undefined,
     image_url: row.image_url || undefined,
     image_source: row.image_source || undefined,
@@ -192,22 +195,38 @@ export async function getArticlesFromD1(
 }
 
 /**
- * Inserts an article into D1 with automatic deduplication.
- * Returns true if article was newly inserted, false if it was a duplicate.
+ * Inserts an article into D1 with automatic deduplication and metadata enrichment.
+ * If the URL already exists, it updates metadata if richer information is available.
+ * Returns true if article was newly inserted or updated.
  */
 export async function insertArticleToD1(db: D1Database, article: Article): Promise<boolean> {
   const query = `
-    INSERT OR IGNORE INTO articles (
+    INSERT INTO articles (
       id, url, title, source, source_type, reliability,
-      content, category, published_at, discovered_at, collected_at,
+      content, category, published_at, discovered_at, updated_at, collected_at,
       analysis, summary, why_it_matters, importance,
       companies, technologies, image_url, image_source,
       image_license, image_credit, image_alt, content_hash, other_sources
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(url) DO UPDATE SET
+      title = excluded.title,
+      content = COALESCE(excluded.content, articles.content),
+      image_url = COALESCE(excluded.image_url, articles.image_url),
+      image_source = COALESCE(excluded.image_source, articles.image_source),
+      image_license = COALESCE(excluded.image_license, articles.image_license),
+      image_credit = COALESCE(excluded.image_credit, articles.image_credit),
+      image_alt = COALESCE(excluded.image_alt, articles.image_alt),
+      updated_at = excluded.updated_at,
+      collected_at = excluded.collected_at,
+      analysis = CASE WHEN excluded.summary IS NOT NULL AND length(excluded.summary) > length(COALESCE(articles.summary, '')) THEN excluded.analysis ELSE articles.analysis END,
+      summary = CASE WHEN excluded.summary IS NOT NULL AND length(excluded.summary) > length(COALESCE(articles.summary, '')) THEN excluded.summary ELSE articles.summary END,
+      why_it_matters = CASE WHEN excluded.why_it_matters IS NOT NULL AND length(excluded.why_it_matters) > length(COALESCE(articles.why_it_matters, '')) THEN excluded.why_it_matters ELSE articles.why_it_matters END,
+      importance = MAX(articles.importance, excluded.importance)
   `;
 
   const now = new Date().toISOString();
   const publishedAt = article.published_at || now;
+  const discoveredAt = article.discovered_at || now;
   const analysisJson = JSON.stringify(article.analysis || {});
   const companiesJson = JSON.stringify(article.analysis?.companies || []);
   const technologiesJson = JSON.stringify(article.analysis?.technologies || []);
@@ -223,6 +242,7 @@ export async function insertArticleToD1(db: D1Database, article: Article): Promi
     article.content ? decodeHtmlEntities(article.content) : null,
     article.category || article.analysis?.category || 'Research',
     publishedAt,
+    discoveredAt,
     now,
     now,
     analysisJson,
@@ -246,6 +266,7 @@ export async function insertArticleToD1(db: D1Database, article: Article): Promi
 
 /**
  * Batch-inserts a list of articles into D1 efficiently.
+ * Uses ON CONFLICT to update enriched articles while preventing duplicate rows.
  */
 export async function batchInsertArticlesToD1(db: D1Database, articles: Article[]): Promise<number> {
   if (articles.length === 0) return 0;
@@ -253,16 +274,31 @@ export async function batchInsertArticlesToD1(db: D1Database, articles: Article[
   const now = new Date().toISOString();
   const statements = articles.map((article) => {
     const query = `
-      INSERT OR IGNORE INTO articles (
+      INSERT INTO articles (
         id, url, title, source, source_type, reliability,
-        content, category, published_at, discovered_at, collected_at,
+        content, category, published_at, discovered_at, updated_at, collected_at,
         analysis, summary, why_it_matters, importance,
         companies, technologies, image_url, image_source,
         image_license, image_credit, image_alt, content_hash, other_sources
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(url) DO UPDATE SET
+        title = excluded.title,
+        content = COALESCE(excluded.content, articles.content),
+        image_url = COALESCE(excluded.image_url, articles.image_url),
+        image_source = COALESCE(excluded.image_source, articles.image_source),
+        image_license = COALESCE(excluded.image_license, articles.image_license),
+        image_credit = COALESCE(excluded.image_credit, articles.image_credit),
+        image_alt = COALESCE(excluded.image_alt, articles.image_alt),
+        updated_at = excluded.updated_at,
+        collected_at = excluded.collected_at,
+        analysis = CASE WHEN excluded.summary IS NOT NULL AND length(excluded.summary) > length(COALESCE(articles.summary, '')) THEN excluded.analysis ELSE articles.analysis END,
+        summary = CASE WHEN excluded.summary IS NOT NULL AND length(excluded.summary) > length(COALESCE(articles.summary, '')) THEN excluded.summary ELSE articles.summary END,
+        why_it_matters = CASE WHEN excluded.why_it_matters IS NOT NULL AND length(excluded.why_it_matters) > length(COALESCE(articles.why_it_matters, '')) THEN excluded.why_it_matters ELSE articles.why_it_matters END,
+        importance = MAX(articles.importance, excluded.importance)
     `;
 
     const publishedAt = article.published_at || now;
+    const discoveredAt = article.discovered_at || now;
     const analysisJson = JSON.stringify(article.analysis || {});
     const companiesJson = JSON.stringify(article.analysis?.companies || []);
     const technologiesJson = JSON.stringify(article.analysis?.technologies || []);
@@ -278,6 +314,7 @@ export async function batchInsertArticlesToD1(db: D1Database, articles: Article[
       article.content ? decodeHtmlEntities(article.content) : null,
       article.category || article.analysis?.category || 'Research',
       publishedAt,
+      discoveredAt,
       now,
       now,
       analysisJson,
@@ -311,6 +348,54 @@ export async function batchInsertArticlesToD1(db: D1Database, articles: Article[
   }
 
   return insertedCount;
+}
+
+/**
+ * Safely prunes older articles to maintain target retention (e.g. 2,000 articles).
+ * Never deletes recent articles and never wipes data during a run.
+ */
+export async function pruneOldArticles(db: D1Database, maxKeep: number = 2000): Promise<number> {
+  try {
+    const countRes = await db.prepare('SELECT COUNT(*) as count FROM articles').first<{ count: number }>();
+    const total = countRes?.count ?? 0;
+    if (total <= maxKeep + 50) {
+      return 0;
+    }
+
+    const deleteCount = total - maxKeep;
+    const res = await db
+      .prepare(`
+        DELETE FROM articles
+        WHERE id IN (
+          SELECT id FROM articles
+          ORDER BY published_at ASC, collected_at ASC
+          LIMIT ?
+        )
+      `)
+      .bind(deleteCount)
+      .run();
+
+    // Prune old ingestion logs older than the last 100
+    try {
+      await db
+        .prepare(`
+          DELETE FROM ingestion_logs
+          WHERE id NOT IN (
+            SELECT id FROM ingestion_logs
+            ORDER BY id DESC
+            LIMIT 100
+          )
+        `)
+        .run();
+    } catch {
+      // Ignored
+    }
+
+    return res?.meta?.changes ?? 0;
+  } catch (err: any) {
+    console.warn(`[Retention Prune Warning] ${err.message}`);
+    return 0;
+  }
 }
 
 /**

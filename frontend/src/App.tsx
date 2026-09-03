@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Header } from './components/Header';
 import { Navigation } from './components/Navigation';
 import { FilterBar } from './components/FilterBar';
@@ -110,24 +110,42 @@ export default function App() {
     loadArticles(useMock);
   }, [useMock, loadArticles]);
 
+  const latestTimestampRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (articles.length > 0 && articles[0]?.published_at) {
+      latestTimestampRef.current = articles[0].published_at;
+    }
+  }, [articles]);
+
   // Periodic background check for newly published articles (every 5 minutes)
+  // Automatically updates the feed without requiring manual page refresh
   useEffect(() => {
     if (useMock) return;
 
     const checkInterval = setInterval(async () => {
       try {
-        const latestTimestamp = articles[0]?.published_at || null;
+        const latestTimestamp = latestTimestampRef.current;
         const result = await checkForNewArticles(latestTimestamp);
         if (result.hasNew && result.newCount > 0) {
           setNewAvailableArticles(result.newCount);
+          // Automatically fetch fresh articles into feed without disrupting active reading
+          const freshData = await getArticles(false);
+          if (freshData.articles.length > 0) {
+            setArticles(freshData.articles);
+            setApiStatus((prev) => ({
+              ...prev,
+              lastChecked: new Date(),
+              articleCount: freshData.articles.length,
+            }));
+          }
         }
       } catch {
-        // Quiet failure in background without disrupting reader
+        // Quiet background check
       }
     }, 5 * 60 * 1000); // 5 minutes
 
     return () => clearInterval(checkInterval);
-  }, [useMock, articles]);
+  }, [useMock]);
 
   // Apply new live updates to feed without losing scroll context
   const handleApplyNewArticles = async () => {

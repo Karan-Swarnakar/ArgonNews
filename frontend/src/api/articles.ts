@@ -105,6 +105,8 @@ export function normalizeArticle(raw: any, index: number): Article {
     content: raw.content ? decodeHtmlEntities(raw.content) : '',
     category: String(raw.category || analysisRaw.category || 'General'),
     published_at: raw.published_at || raw.date || undefined,
+    discovered_at: raw.discovered_at || undefined,
+    updated_at: raw.updated_at || undefined,
     image_url: raw.image_url || undefined,
     other_sources: Array.isArray(raw.other_sources) ? raw.other_sources : undefined,
     analysis: {

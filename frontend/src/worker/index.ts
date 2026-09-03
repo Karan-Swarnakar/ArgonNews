@@ -43,7 +43,9 @@ export default {
       try {
         const category = url.searchParams.get('category') || undefined;
         const source = url.searchParams.get('source') || undefined;
-        const sortBy = (url.searchParams.get('sortBy') as 'newest' | 'importance-desc') || 'newest';
+        const rawSort = url.searchParams.get('sortBy') || url.searchParams.get('sort');
+        const sortBy: 'newest' | 'importance-desc' =
+          rawSort === 'impact' || rawSort === 'importance-desc' ? 'importance-desc' : 'newest';
         const search = url.searchParams.get('search') || url.searchParams.get('q') || undefined;
         const limit = parseInt(url.searchParams.get('limit') || '120', 10);
         const offset = parseInt(url.searchParams.get('offset') || '0', 10);
@@ -249,7 +251,20 @@ export default {
    * Runs every 30 minutes in production without user intervention.
    */
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-    console.log(`[Cron Trigger] Ingestion started at ${new Date().toISOString()} (Cron: ${event.cron})`);
-    ctx.waitUntil(runIngestionPipeline(env));
+    console.log(`[Cron Trigger] Autonomous ingestion triggered at ${new Date().toISOString()} (Cron: ${event?.cron || '*/30 * * * *'})`);
+    const ingestionTask = (async () => {
+      try {
+        const result = await runIngestionPipeline(env);
+        console.log(
+          `[Cron Trigger] Pipeline finished: ${result.articlesInserted} new articles inserted, ${result.sourcesSucceeded}/${result.sourcesAttempted} sources succeeded.`
+        );
+        return result;
+      } catch (err: any) {
+        console.error(`[Cron Trigger Error] Pipeline encountered an error: ${err.message}`, err);
+      }
+    })();
+
+    ctx.waitUntil(ingestionTask);
+    await ingestionTask;
   },
 };

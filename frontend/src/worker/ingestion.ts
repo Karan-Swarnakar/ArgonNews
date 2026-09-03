@@ -14,10 +14,30 @@ import {
   computeImportance,
 } from '../utils/text';
 import { D1Database, Env } from './types';
-import { batchInsertArticlesToD1 } from './db';
+import { batchInsertArticlesToD1, pruneOldArticles } from './db';
 
 const BOT_USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 (ArgonNewsAutonomousBot/3.1; +https://argonnews.org)';
+
+/**
+ * Strips tracking parameters for consistent URL canonicalization and deduplication.
+ */
+function canonicalizeUrl(rawUrl: string): string {
+  try {
+    const parsed = new URL(rawUrl.trim());
+    const cleanParams = new URLSearchParams();
+    for (const [k, v] of parsed.searchParams.entries()) {
+      if (!k.startsWith('utm_') && k !== 'fbclid' && k !== 'gclid' && k !== 'ref' && k !== 'source') {
+        cleanParams.append(k, v);
+      }
+    }
+    parsed.search = cleanParams.toString();
+    parsed.hash = '';
+    return parsed.toString();
+  } catch {
+    return rawUrl.trim();
+  }
+}
 
 /**
  * Extracts candidate image URL from XML item block or HTML content.
@@ -73,7 +93,7 @@ export function parseRssOrAtomXml(xml: string, sourceDef: SourceDefinition): Art
         block.match(/<guid(?:[^>]*)>([\s\S]*?)<\/guid>/i);
 
       if (linkHrefMatch) {
-        url = decodeHtmlEntities(linkHrefMatch[1] || linkHrefMatch[2]).trim();
+        url = canonicalizeUrl(decodeHtmlEntities(linkHrefMatch[1] || linkHrefMatch[2]).trim());
       }
       if (!url || !url.startsWith('http')) {
         url = sourceDef.url;
@@ -123,6 +143,8 @@ export function parseRssOrAtomXml(xml: string, sourceDef: SourceDefinition): Art
         reliability: sourceDef.reliability,
         category,
         published_at,
+        discovered_at,
+        updated_at: now,
         content: rawDesc || summary,
         image_url: imageUrl,
         analysis: {
@@ -261,6 +283,14 @@ export async function runIngestionPipeline(
       articlesInserted = await batchInsertArticlesToD1(db, allFoundArticles);
     } catch (err: any) {
       errors.push(`D1 Batch Insert Error: ${err.message}`);
+    }
+
+    // Safely prune old articles to maintain target 2,000 article retention limit
+    try {
+      await pruneOldArticles(db, 2000);
+    } catch (err: any) {
+      // Non-blocking prune warning
+      console.warn(`[Retention Prune] Non-blocking warning: ${err?.message}`);
     }
 
     // Record audit log

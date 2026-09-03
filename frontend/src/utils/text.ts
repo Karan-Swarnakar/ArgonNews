@@ -93,25 +93,97 @@ export function decodeHtmlEntities(raw?: string | null): string {
   return str.replace(/\s+/g, ' ').trim();
 }
 
+// Known timezone abbreviations mapped to standard numeric offsets (+HHMM / -HHMM)
+const TIMEZONE_OFFSETS: Record<string, string> = {
+  EDT: '-0400',
+  EST: '-0500',
+  CDT: '-0500',
+  CST: '-0600',
+  MDT: '-0600',
+  MST: '-0700',
+  PDT: '-0700',
+  PST: '-0800',
+  AKDT: '-0800',
+  AKST: '-0900',
+  HST: '-1000',
+  BST: '+0100',
+  CET: '+0100',
+  CEST: '+0200',
+  EET: '+0200',
+  EEST: '+0300',
+  MSK: '+0300',
+  IST: '+0530',
+  JST: '+0900',
+  KST: '+0900',
+  AEST: '+1000',
+  AEDT: '+1100',
+  NZST: '+1200',
+  NZDT: '+1300',
+  UTC: '+0000',
+  GMT: '+0000',
+  Z: '+0000',
+};
+
 /**
- * Robust ISO Date normalizer. Returns ISO 8601 string or undefined.
+ * Robust ISO Date normalizer.
+ * Correctly parses RSS pubDate, Atom published/updated, ISO-8601, RFC 822 / 2822,
+ * and common timezone formats into a UTC ISO-8601 string (e.g. 2026-09-03T12:00:00.000Z).
+ * Returns undefined if no valid publication date can be verified (avoiding fake dates).
  */
 export function normalizeDate(rawDate?: string | null): string | undefined {
   if (!rawDate) return undefined;
-  const clean = String(rawDate).trim();
+  let clean = String(rawDate).trim();
   if (!clean) return undefined;
 
-  const parsed = Date.parse(clean);
-  if (!isNaN(parsed)) {
-    return new Date(parsed).toISOString();
+  // 1. Unwrap CDATA and decode HTML entities if present
+  clean = clean.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1').trim();
+  clean = decodeHtmlEntities(clean);
+
+  // 2. Replace textual timezone abbreviations with numeric offsets for consistent V8 parsing
+  for (const [tz, offset] of Object.entries(TIMEZONE_OFFSETS)) {
+    const tzRegex = new RegExp(`\\b${tz}\\b`, 'g');
+    if (tzRegex.test(clean)) {
+      clean = clean.replace(tzRegex, offset);
+      break;
+    }
   }
 
-  const d = new Date(clean);
-  if (!isNaN(d.getTime())) {
-    return d.toISOString();
+  // 3. Try standard Date.parse
+  let timestamp = Date.parse(clean);
+
+  // 4. Fallback: Check if it's format "YYYY-MM-DD HH:mm:ss" without T
+  if (isNaN(timestamp)) {
+    const matchYMD = clean.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|([+-]\d{2}:?\d{2}))?$/);
+    if (matchYMD) {
+      const isoCandidate = `${matchYMD[1]}-${matchYMD[2]}-${matchYMD[3]}T${matchYMD[4]}:${matchYMD[5]}:${matchYMD[6]}${matchYMD[7] || 'Z'}`;
+      timestamp = Date.parse(isoCandidate);
+    }
   }
 
-  return undefined;
+  // 5. Fallback: Pure date "YYYY-MM-DD"
+  if (isNaN(timestamp)) {
+    const matchDateOnly = clean.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (matchDateOnly) {
+      timestamp = Date.parse(`${clean}T00:00:00Z`);
+    }
+  }
+
+  if (isNaN(timestamp)) {
+    return undefined;
+  }
+
+  const d = new Date(timestamp);
+  const timeMs = d.getTime();
+
+  // Validate bounds: Must be a plausible modern date (e.g. >= 2018) and not > 2 days in the future
+  const maxFuture = Date.now() + 2 * 24 * 60 * 60 * 1000;
+  const minPast = new Date('2018-01-01T00:00:00Z').getTime();
+
+  if (timeMs < minPast || timeMs > maxFuture) {
+    return undefined;
+  }
+
+  return d.toISOString();
 }
 
 /**

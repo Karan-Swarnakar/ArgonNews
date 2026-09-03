@@ -72,13 +72,13 @@ async function main() {
 
     const sql = `INSERT OR IGNORE INTO articles (
       id, url, title, source, source_type, reliability, content, category,
-      published_at, discovered_at, collected_at, analysis, summary, why_it_matters,
+      published_at, discovered_at, updated_at, collected_at, analysis, summary, why_it_matters,
       importance, companies, technologies, image_url, image_source, image_license,
       image_credit, image_alt, content_hash, other_sources
     ) VALUES (
       ${escapeSql(id)}, ${escapeSql(url)}, ${escapeSql(title)}, ${escapeSql(source)},
       ${escapeSql(sourceType)}, ${reliability}, ${escapeSql(content)}, ${escapeSql(category)},
-      ${escapeSql(publishedAt)}, ${escapeSql(discoveredAt)}, ${escapeSql(collectedAt)},
+      ${escapeSql(publishedAt)}, ${escapeSql(discoveredAt)}, ${escapeSql(now)}, ${escapeSql(collectedAt)},
       ${escapeSql(analysisJson)}, ${escapeSql(summary)}, ${escapeSql(whyItMatters)},
       ${importance}, ${escapeSql(companies)}, ${escapeSql(technologies)},
       ${escapeSql(imageUrl)}, ${escapeSql(imageSource)}, ${escapeSql(imageLicense)},
