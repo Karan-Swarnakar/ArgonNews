@@ -1,15 +1,18 @@
 /**
  * ArgonNews - AI Money Flow: Compact Homepage Preview
- * High-performance, lightweight Canvas experience inspired by interactive Google Doodles.
+ * A restrained, editorial interactive canvas inspired by Google Doodles.
  * Displays only the most significant/recent transactions in a compact footprint.
- * Hover triggers subtle highlights & tooltips; click opens the expanded visualization.
+ * Hover reveals a compact deal card; click opens the full visualization.
  */
 
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { AITransaction, Article } from '../types';
 import { getTopTransactionsForPreview } from '../utils/transactionExtraction';
-import { getCompanyTheme } from '../utils/companyThemes';
-import { ArrowUpRight, Maximize2, Activity, DollarSign, Clock } from 'lucide-react';
+import { getCompanyLogo, drawCompanyLogo, drawCompanyMonogram, getShortLabel } from '../assets/companyLogos';
+import { TransactionCard } from './TransactionCard';
+import { ArrowUpRight, Sparkles } from 'lucide-react';
+
+const ACCENT = '#38bdf8';
 
 interface AIMoneyFlowPreviewProps {
   transactions: AITransaction[];
@@ -25,7 +28,7 @@ interface PreviewNode {
   targetX: number;
   targetY: number;
   radius: number;
-  role: string;
+  baseRadius: number;
   isPrimary?: boolean;
 }
 
@@ -49,7 +52,7 @@ export const AIMoneyFlowPreview: React.FC<AIMoneyFlowPreviewProps> = ({
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
   const [isHoveringCanvas, setIsHoveringCanvas] = useState(false);
 
-  // Top 5-6 transactions for compact preview
+  // Top transactions for compact preview
   const topTransactions = useMemo(() => {
     return getTopTransactionsForPreview(transactions, 5);
   }, [transactions]);
@@ -66,8 +69,8 @@ export const AIMoneyFlowPreview: React.FC<AIMoneyFlowPreviewProps> = ({
           y: 0,
           targetX: 0,
           targetY: 0,
-          radius: 27,
-          role: 'Capital / Compute Provider',
+          radius: 28,
+          baseRadius: 28,
           isPrimary: tx.source_company === 'NVIDIA' || tx.source_company === 'Microsoft',
         });
       }
@@ -78,8 +81,8 @@ export const AIMoneyFlowPreview: React.FC<AIMoneyFlowPreviewProps> = ({
           y: 0,
           targetX: 0,
           targetY: 0,
-          radius: 25,
-          role: 'Frontier AI Lab / Recipient',
+          radius: 26,
+          baseRadius: 26,
         });
       }
     });
@@ -94,35 +97,37 @@ export const AIMoneyFlowPreview: React.FC<AIMoneyFlowPreviewProps> = ({
       const count = placed.length;
       if (count === 0) return [];
 
-      // Balanced two-tier horizontal flow: Sources on left/top-left, Recipients on right/center
-      // E.g.: NVIDIA, Microsoft, Amazon on left; OpenAI, Hugging Face, Anthropic on right
+      // Shrink bubbles slightly on narrow (mobile) widths so closely-placed nodes
+      // keep breathing room instead of touching.
+      const radiusScale = Math.max(0.62, Math.min(1, width / 620));
+
       placed.forEach((node, i) => {
+        node.radius = node.baseRadius * radiusScale;
         let tx = 0.5;
         let ty = 0.5;
 
         if (node.name === 'NVIDIA') {
-          tx = 0.22;
-          ty = 0.35;
+          tx = 0.2;
+          ty = 0.36;
         } else if (node.name === 'Microsoft') {
-          tx = 0.20;
-          ty = 0.72;
+          tx = 0.18;
+          ty = 0.74;
         } else if (node.name === 'Hugging Face') {
-          tx = 0.50;
-          ty = 0.28;
+          tx = 0.48;
+          ty = 0.26;
         } else if (node.name === 'OpenAI') {
           tx = 0.55;
-          ty = 0.70;
+          ty = 0.72;
         } else if (node.name === 'Amazon / AWS') {
-          tx = 0.78;
-          ty = 0.30;
+          tx = 0.8;
+          ty = 0.28;
         } else if (node.name === 'Anthropic') {
-          tx = 0.84;
+          tx = 0.86;
           ty = 0.72;
         } else if (node.name === 'Oracle') {
-          tx = 0.75;
-          ty = 0.82;
+          tx = 0.78;
+          ty = 0.86;
         } else {
-          // Dynamic spread if dataset varies
           const angle = (i / count) * Math.PI * 2;
           tx = 0.5 + Math.cos(angle) * 0.35;
           ty = 0.5 + Math.sin(angle) * 0.32;
@@ -145,11 +150,10 @@ export const AIMoneyFlowPreview: React.FC<AIMoneyFlowPreviewProps> = ({
   const particlesRef = useRef<Array<{ edgeIndex: number; progress: number; speed: number }>>([]);
 
   useEffect(() => {
-    // Generate 12 flow particles
-    particlesRef.current = Array.from({ length: 14 }, (_, i) => ({
+    particlesRef.current = Array.from({ length: 10 }, (_, i) => ({
       edgeIndex: i % Math.max(1, topTransactions.length),
       progress: (i * 0.17) % 1,
-      speed: 0.003 + (i % 3) * 0.0015,
+      speed: 0.0022 + (i % 3) * 0.001,
     }));
   }, [topTransactions]);
 
@@ -161,61 +165,66 @@ export const AIMoneyFlowPreview: React.FC<AIMoneyFlowPreviewProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let width = (canvas.width = canvas.parentElement?.clientWidth || 700);
-    let height = (canvas.height = 190);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let cssWidth = canvas.parentElement?.clientWidth || 700;
+    let cssHeight = 224;
+
+    const applySize = () => {
+      canvas.width = cssWidth * dpr;
+      canvas.height = cssHeight * dpr;
+      canvas.style.width = `${cssWidth}px`;
+      canvas.style.height = `${cssHeight}px`;
+    };
+    applySize();
 
     const handleResize = () => {
       if (!canvas || !canvas.parentElement) return;
       const w = canvas.parentElement.clientWidth;
-      const h = 190;
-      if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w;
-        canvas.height = h;
-        width = w;
-        height = h;
+      if (w !== cssWidth) {
+        cssWidth = w;
+        applySize();
       }
     };
-
     window.addEventListener('resize', handleResize);
 
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
     let startTime = performance.now();
 
     const render = (now: number) => {
       const elapsed = (now - startTime) / 1000;
+      const width = cssWidth;
+      const height = cssHeight;
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, height);
 
       const placedNodes = layoutNodes(width, height);
       const nodeLookup = new Map<string, PreviewNode>(placedNodes.map((n) => [n.name, n]));
 
-      // 1. Subtle background grid dots for technical aesthetic
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
-      const step = 28;
+      // 1. Faint background grid dots
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.025)';
+      const step = 30;
       for (let x = step; x < width; x += step) {
         for (let y = step; y < height; y += step) {
-          ctx.fillRect(x, y, 1.5, 1.5);
+          ctx.fillRect(x, y, 1, 1);
         }
       }
 
-      // 2. Build Edges
+      // 2. Build edges
       const edges: PreviewEdge[] = [];
       topTransactions.forEach((tx) => {
         const src = nodeLookup.get(tx.source_company);
         const tgt = nodeLookup.get(tx.target_company);
-        if (src && tgt) {
-          edges.push({ tx, source: src, target: tgt });
-        }
+        if (src && tgt) edges.push({ tx, source: src, target: tgt });
       });
 
-      // 3. Draw Connection Lines
+      // 3. Draw connection lines - single accent color throughout
       edges.forEach((edge, idx) => {
         const { source, target, tx } = edge;
         const isTxHovered = hoveredTx?.id === tx.id;
         const isNodeHovered = hoveredNode === source.name || hoveredNode === target.name;
         const isHighlighted = isTxHovered || isNodeHovered;
 
-        // Curved line with control point
         const midX = (source.x + target.x) / 2;
         const midY = (source.y + target.y) / 2 + (idx % 2 === 0 ? -12 : 12);
 
@@ -223,67 +232,49 @@ export const AIMoneyFlowPreview: React.FC<AIMoneyFlowPreviewProps> = ({
         ctx.moveTo(source.x, source.y);
         ctx.quadraticCurveTo(midX, midY, target.x, target.y);
 
+        let widthScale = 1.1;
+        if (tx.amount_disclosed && tx.amount) {
+          if (tx.amount >= 10_000_000_000) widthScale = 2.2;
+          else if (tx.amount >= 1_000_000_000) widthScale = 1.7;
+          else if (tx.amount >= 100_000_000) widthScale = 1.3;
+        }
+
         if (isHighlighted) {
-          ctx.strokeStyle = '#38bdf8'; // bright cyan highlight
-          ctx.lineWidth = 2.5;
-          ctx.shadowColor = 'rgba(56, 189, 248, 0.5)';
-          ctx.shadowBlur = 8;
+          ctx.strokeStyle = ACCENT;
+          ctx.lineWidth = widthScale + 1.1;
+          ctx.shadowColor = 'rgba(56, 189, 248, 0.45)';
+          ctx.shadowBlur = 7;
         } else {
-          ctx.strokeStyle = 'rgba(148, 163, 184, 0.22)';
-          ctx.lineWidth = tx.amount_disclosed && (tx.amount || 0) > 5_000_000_000 ? 2 : 1.2;
+          ctx.strokeStyle = 'rgba(56, 189, 248, 0.22)';
+          ctx.lineWidth = widthScale;
           ctx.shadowBlur = 0;
         }
         ctx.stroke();
         ctx.shadowBlur = 0;
 
-        // Draw small directional arrow head near target
-        const tVal = 0.82;
+        // Directional arrowhead
+        const tVal = 0.84;
         const arrowX = (1 - tVal) * (1 - tVal) * source.x + 2 * (1 - tVal) * tVal * midX + tVal * tVal * target.x;
         const arrowY = (1 - tVal) * (1 - tVal) * source.y + 2 * (1 - tVal) * tVal * midY + tVal * tVal * target.y;
-
-        const nextT = 0.85;
+        const nextT = 0.87;
         const nextX = (1 - nextT) * (1 - nextT) * source.x + 2 * (1 - nextT) * nextT * midX + nextT * nextT * target.x;
         const nextY = (1 - nextT) * (1 - nextT) * source.y + 2 * (1 - nextT) * nextT * midY + nextT * nextT * target.y;
-
         const angle = Math.atan2(nextY - arrowY, nextX - arrowX);
 
         ctx.save();
         ctx.translate(arrowX, arrowY);
         ctx.rotate(angle);
-        ctx.fillStyle = isHighlighted ? '#38bdf8' : 'rgba(148, 163, 184, 0.4)';
+        ctx.fillStyle = isHighlighted ? ACCENT : 'rgba(56, 189, 248, 0.35)';
         ctx.beginPath();
         ctx.moveTo(0, 0);
-        ctx.lineTo(-6, -3.5);
-        ctx.lineTo(-6, 3.5);
+        ctx.lineTo(-5.5, -3.2);
+        ctx.lineTo(-5.5, 3.2);
         ctx.closePath();
         ctx.fill();
         ctx.restore();
-
-        // Amount badge on middle of highlighted connection
-        if (isHighlighted && tx.amount_formatted) {
-          ctx.save();
-          ctx.font = '600 10px monospace';
-          ctx.fillStyle = '#f8fafc';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          const textMetrics = ctx.measureText(tx.amount_formatted);
-          const bgW = textMetrics.width + 12;
-          const bgH = 18;
-          ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
-          ctx.strokeStyle = '#38bdf8';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.roundRect(midX - bgW / 2, midY - bgH / 2, bgW, bgH, 4);
-          ctx.fill();
-          ctx.stroke();
-
-          ctx.fillStyle = '#38bdf8';
-          ctx.fillText(tx.amount_formatted, midX, midY + 0.5);
-          ctx.restore();
-        }
       });
 
-      // 4. Draw Animated Capital Flow Particles (unless reduced motion)
+      // 4. Animated capital flow particles
       if (!prefersReducedMotion && edges.length > 0) {
         particlesRef.current.forEach((p) => {
           p.progress = (p.progress + p.speed) % 1;
@@ -299,68 +290,63 @@ export const AIMoneyFlowPreview: React.FC<AIMoneyFlowPreviewProps> = ({
           const py = (1 - t) * (1 - t) * source.y + 2 * (1 - t) * t * midY + t * t * target.y;
 
           ctx.beginPath();
-          ctx.arc(px, py, 2.2, 0, Math.PI * 2);
-          ctx.fillStyle = '#38bdf8';
-          ctx.shadowColor = '#38bdf8';
-          ctx.shadowBlur = 6;
+          ctx.arc(px, py, 1.8, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(125, 211, 252, 0.85)';
           ctx.fill();
-          ctx.shadowBlur = 0;
         });
       }
 
-      // 5. Draw Company Bubbles
+      // 5. Draw company bubbles
       placedNodes.forEach((node, i) => {
-        // Gentle organic float
-        const floatY = prefersReducedMotion ? 0 : Math.sin(elapsed * 1.5 + i) * 2;
+        const floatY = prefersReducedMotion ? 0 : Math.sin(elapsed * 1.3 + i * 1.7) * 1.6;
         const curX = node.x;
         const curY = node.y + floatY;
 
         const isHovered = hoveredNode === node.name;
         const isConnectedToHoveredTx =
           hoveredTx && (hoveredTx.source_company === node.name || hoveredTx.target_company === node.name);
+        const isActive = isHovered || isConnectedToHoveredTx;
 
-        const activeGlow = isHovered || isConnectedToHoveredTx;
-
-        // Outer glow
-        if (activeGlow) {
-          ctx.beginPath();
-          ctx.arc(curX, curY, node.radius + 6, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(56, 189, 248, 0.15)';
-          ctx.fill();
-        }
-
-        // Main circle fill
+        // Soft drop shadow
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+        ctx.shadowBlur = isActive ? 14 : 8;
+        ctx.shadowOffsetY = 3;
         ctx.beginPath();
         ctx.arc(curX, curY, node.radius, 0, Math.PI * 2);
-
-        if (activeGlow) {
-          ctx.fillStyle = '#0f172a';
-          ctx.strokeStyle = '#38bdf8';
-          ctx.lineWidth = 2;
-        } else if (node.isPrimary) {
-          ctx.fillStyle = '#161b22';
-          ctx.strokeStyle = '#30363d';
-          ctx.lineWidth = 1.5;
-        } else {
-          ctx.fillStyle = '#13171f';
-          ctx.strokeStyle = '#282e38';
-          ctx.lineWidth = 1.2;
-        }
+        ctx.fillStyle = isActive ? '#171d27' : '#141922';
         ctx.fill();
+        ctx.restore();
+
+        // Border ring
+        ctx.beginPath();
+        ctx.arc(curX, curY, node.radius, 0, Math.PI * 2);
+        ctx.lineWidth = isActive ? 1.6 : 1;
+        ctx.strokeStyle = isActive ? ACCENT : 'rgba(255, 255, 255, 0.09)';
         ctx.stroke();
 
-        // Node Label (clean, scannable)
-        ctx.font = '600 11px system-ui, -apple-system, sans-serif';
+        if (isActive) {
+          ctx.beginPath();
+          ctx.arc(curX, curY, node.radius + 4, 0, Math.PI * 2);
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = 'rgba(56, 189, 248, 0.28)';
+          ctx.stroke();
+        }
+
+        // Logo (or elegant monogram fallback), generous breathing room
+        const logo = getCompanyLogo(node.name);
+        if (logo) {
+          drawCompanyLogo(ctx, logo, curX, curY, node.radius * 1.08, '#e6edf3');
+        } else {
+          drawCompanyMonogram(ctx, node.name, curX, curY, node.radius, isActive ? '#f0f6fc' : '#9ba5b0');
+        }
+
+        // Name label below bubble
+        ctx.font = '500 11px "Plus Jakarta Sans", system-ui, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = activeGlow ? '#ffffff' : '#e2e8f0';
-
-        // Abbreviate if long
-        let label = node.name;
-        if (label === 'Google / Alphabet') label = 'Google';
-        if (label === 'Amazon / AWS') label = 'AWS';
-
-        ctx.fillText(label, curX, curY);
+        ctx.fillStyle = isActive ? '#f0f6fc' : '#7d8590';
+        ctx.fillText(getShortLabel(node.name), curX, curY + node.radius + 15);
       });
 
       animFrameRef.current = requestAnimationFrame(render);
@@ -383,10 +369,9 @@ export const AIMoneyFlowPreview: React.FC<AIMoneyFlowPreviewProps> = ({
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    const placedNodes = layoutNodes(canvas.width, canvas.height);
+    const placedNodes = layoutNodes(rect.width, rect.height);
     const nodeLookup = new Map<string, PreviewNode>(placedNodes.map((n) => [n.name, n]));
 
-    // Check node hover
     let hitNode: PreviewNode | null = null;
     for (const node of placedNodes) {
       const dist = Math.hypot(node.x - mouseX, node.y - mouseY);
@@ -403,7 +388,6 @@ export const AIMoneyFlowPreview: React.FC<AIMoneyFlowPreviewProps> = ({
       return;
     }
 
-    // Check edge hover (approximate distance to quadratic curve)
     let hitTx: AITransaction | null = null;
     topTransactions.forEach((tx, idx) => {
       const src = nodeLookup.get(tx.source_company);
@@ -413,13 +397,12 @@ export const AIMoneyFlowPreview: React.FC<AIMoneyFlowPreviewProps> = ({
       const midX = (src.x + tgt.x) / 2;
       const midY = (src.y + tgt.y) / 2 + (idx % 2 === 0 ? -12 : 12);
 
-      // Samples along curve
       for (let t = 0.2; t <= 0.8; t += 0.1) {
         const qx = (1 - t) * (1 - t) * src.x + 2 * (1 - t) * t * midX + t * t * tgt.x;
         const qy = (1 - t) * (1 - t) * src.y + 2 * (1 - t) * t * midY + t * t * tgt.y;
         if (Math.hypot(qx - mouseX, qy - mouseY) < 14) {
           hitTx = tx;
-          setTooltipPos({ x: midX, y: midY - 14 });
+          setTooltipPos({ x: midX, y: midY });
           break;
         }
       }
@@ -442,63 +425,57 @@ export const AIMoneyFlowPreview: React.FC<AIMoneyFlowPreviewProps> = ({
     setIsHoveringCanvas(false);
   };
 
-  // Format real relative time difference (e.g. "Data updated 3 minutes ago")
   const formattedTimeAgo = useMemo(() => {
-    if (!lastUpdated) return 'Live dataset synchronized';
+    if (!lastUpdated) return 'Live dataset';
     const diffMs = Date.now() - new Date(lastUpdated).getTime();
     const diffMin = Math.floor(diffMs / 60000);
-    if (diffMin < 1) return 'Data updated just now';
-    if (diffMin === 1) return 'Data updated 1 minute ago';
-    if (diffMin < 60) return `Data updated ${diffMin} minutes ago`;
+    if (diffMin < 1) return 'Updated just now';
+    if (diffMin === 1) return 'Updated 1 minute ago';
+    if (diffMin < 60) return `Updated ${diffMin} minutes ago`;
     const diffHours = Math.floor(diffMin / 60);
-    return `Data updated ${diffHours}h ago`;
+    return `Updated ${diffHours}h ago`;
   }, [lastUpdated]);
+
+  const canvasWidth = canvasRef.current?.parentElement?.clientWidth || 600;
 
   return (
     <div
       ref={containerRef}
       id="ai-money-flow-preview-card"
-      className="mb-8 rounded-xl border border-[#2a313c] bg-gradient-to-b from-[#111620] to-[#0d1117] p-4 text-[#e6edf3] shadow-md transition-all hover:border-[#38bdf8]/40"
+      className="mb-8 rounded-xl border border-[#242b35] bg-[#0e1219] p-4 text-[#e6edf3] shadow-sm transition-colors hover:border-[#2f3946]"
     >
       {/* Header bar */}
       <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
         <div>
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-emerald-400 border border-emerald-500/20">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              CAPITAL FLOWS
-            </span>
-            <h2 className="font-serif text-lg font-bold tracking-tight text-[#f0f6fc]">
+            <Sparkles className="h-3.5 w-3.5 text-[#38bdf8]" />
+            <h2 className="font-serif text-lg font-semibold tracking-tight text-[#f0f6fc]">
               AI Money Flow
             </h2>
           </div>
-          <p className="mt-0.5 text-xs text-[#8b949e]">
-            Follow the transactions shaping the AI industry.
+          <p className="mt-0.5 text-[13px] text-[#7d8590]">
+            The deals shaping the AI industry, mapped.
           </p>
         </div>
 
-        {/* Action affordance & timestamp */}
         <div className="flex items-center gap-3 self-end sm:self-auto">
-          <span className="hidden items-center gap-1 text-[11px] text-[#6e7681] md:inline-flex">
-            <Clock className="h-3 w-3 text-[#58a6ff]" />
-            {formattedTimeAgo}
-          </span>
+          <span className="hidden text-[11px] text-[#5c6470] md:inline-block">{formattedTimeAgo}</span>
 
           <button
             type="button"
             onClick={() => onOpenExpanded(hoveredTx?.id, hoveredNode || undefined)}
-            className="group inline-flex items-center gap-1.5 rounded-lg border border-[#30363d] bg-[#161b22] px-3 py-1.5 text-xs font-semibold text-[#f0f6fc] transition-all hover:border-[#38bdf8] hover:bg-[#1f2937] hover:text-[#38bdf8] cursor-pointer"
+            className="group inline-flex items-center gap-1.5 rounded-lg border border-[#2a313c] px-3 py-1.5 text-[13px] font-medium text-[#c9d1d9] transition-colors hover:border-[#38bdf8]/50 hover:text-[#f0f6fc] cursor-pointer"
             aria-label="Explore AI Money Flow expanded visualization"
           >
-            <span>Explore AI Money Flow</span>
-            <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 text-[#38bdf8]" />
+            <span>Explore</span>
+            <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           </button>
         </div>
       </div>
 
-      {/* Interactive Canvas Container (Click to expand) */}
+      {/* Interactive canvas (click to expand) */}
       <div
-        className="relative mt-3 h-[190px] w-full cursor-pointer overflow-hidden rounded-lg border border-[#21262d] bg-[#090d14]"
+        className="relative mt-3 h-[224px] w-full cursor-pointer overflow-hidden rounded-lg bg-[#0a0d12]"
         onClick={() => onOpenExpanded(hoveredTx?.id, hoveredNode || undefined)}
         onMouseEnter={() => setIsHoveringCanvas(true)}
         onMouseLeave={handleMouseLeave}
@@ -512,58 +489,44 @@ export const AIMoneyFlowPreview: React.FC<AIMoneyFlowPreviewProps> = ({
           }
         }}
       >
-        <canvas
-          ref={canvasRef}
-          onMouseMove={handleMouseMove}
-          className="h-full w-full block"
-        />
+        <canvas ref={canvasRef} onMouseMove={handleMouseMove} className="block h-full w-full" />
 
-        {/* Hover Tooltip (non-intrusive preview) */}
-        {tooltipPos && (hoveredNode || hoveredTx) && (
+        {/* Hover card */}
+        {tooltipPos && hoveredTx && (
           <div
-            className="pointer-events-none absolute z-20 -translate-x-1/2 transform rounded-md border border-[#38bdf8]/60 bg-[#0d1117]/95 px-2.5 py-1.5 text-xs shadow-xl backdrop-blur-sm"
+            className="pointer-events-none absolute z-20 w-72 max-w-[85vw] -translate-x-1/2"
             style={{
-              left: `${Math.max(80, Math.min(tooltipPos.x, (canvasRef.current?.width || 600) - 80))}px`,
-              top: `${Math.max(10, tooltipPos.y)}px`,
+              left: `${Math.max(140, Math.min(tooltipPos.x, canvasWidth - 140))}px`,
+              top: `${Math.max(0, tooltipPos.y - 8)}px`,
+              transform: 'translate(-50%, -100%)',
             }}
           >
-            {hoveredNode && (
-              <div className="font-mono text-[11px] font-semibold text-[#f0f6fc]">
-                <span className="text-[#38bdf8]">{hoveredNode}</span>
-                <span className="ml-1 text-[10px] text-[#8b949e]">· Click to view ecosystem role</span>
-              </div>
-            )}
-            {hoveredTx && (
-              <div className="flex flex-col text-left">
-                <span className="font-mono text-[11px] font-semibold text-[#38bdf8]">
-                  {hoveredTx.source_company} → {hoveredTx.target_company}
-                </span>
-                <span className="text-[10px] text-[#c9d1d9]">
-                  {hoveredTx.amount_formatted} · {hoveredTx.transaction_type} ({hoveredTx.announcement_date.slice(0, 4)})
-                </span>
-              </div>
-            )}
+            <TransactionCard tx={hoveredTx} variant="compact" />
+          </div>
+        )}
+        {tooltipPos && hoveredNode && !hoveredTx && (
+          <div
+            className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-full rounded-md border border-[#2a313c] bg-[#12161d]/95 px-2.5 py-1.5 text-[11px] font-medium text-[#c9d1d9] shadow-lg"
+            style={{ left: `${tooltipPos.x}px`, top: `${tooltipPos.y}px` }}
+          >
+            {hoveredNode} · view role
           </div>
         )}
 
-        {/* Unobtrusive expand overlay prompt on hover */}
+        {/* Unobtrusive expand hint */}
         <div
-          className={`pointer-events-none absolute inset-x-0 bottom-1 flex items-center justify-center transition-opacity duration-200 ${
-            isHoveringCanvas ? 'opacity-90' : 'opacity-0'
+          className={`pointer-events-none absolute inset-x-0 bottom-2 flex items-center justify-center transition-opacity duration-200 ${
+            isHoveringCanvas && !hoveredNode && !hoveredTx ? 'opacity-80' : 'opacity-0'
           }`}
         >
-          <span className="inline-flex items-center gap-1 rounded-full bg-[#161b22]/90 px-2.5 py-0.5 text-[10px] font-medium text-[#8b949e] border border-[#30363d] backdrop-blur-sm">
-            <Maximize2 className="h-2.5 w-2.5 text-[#38bdf8]" />
-            Click anywhere to launch full interactive map
+          <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-black/40 px-2.5 py-0.5 text-[10px] font-medium text-[#9ba5b0] backdrop-blur-sm">
+            Click to explore the full map
           </span>
         </div>
       </div>
 
-      {/* Scannable Recent Deals Strip */}
-      <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1 text-xs scrollbar-none">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-[#6e7681] shrink-0">
-          Featured:
-        </span>
+      {/* Featured deals strip */}
+      <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-0.5 text-xs scrollbar-none">
         {topTransactions.map((tx) => (
           <button
             key={tx.id}
@@ -572,13 +535,13 @@ export const AIMoneyFlowPreview: React.FC<AIMoneyFlowPreviewProps> = ({
               e.stopPropagation();
               onOpenExpanded(tx.id);
             }}
-            className="group inline-flex items-center gap-1.5 rounded-md border border-[#21262d] bg-[#161b22]/60 px-2.5 py-1 text-[11px] text-[#c9d1d9] transition-all hover:border-[#38bdf8]/50 hover:bg-[#1c2333] hover:text-[#f0f6fc] shrink-0 cursor-pointer"
+            className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#242b35] bg-[#12161d]/60 px-2.5 py-1 text-[11px] text-[#9ba5b0] transition-colors hover:border-[#38bdf8]/40 hover:text-[#f0f6fc] cursor-pointer"
           >
-            <span className="font-semibold text-[#f0f6fc]">{tx.source_company}</span>
+            <span className="font-medium text-[#e6edf3]">{tx.source_company}</span>
             <span className="text-[#38bdf8]">→</span>
-            <span className="font-semibold text-[#f0f6fc]">{tx.target_company}</span>
-            <span className="font-mono text-[#58a6ff]">
-              {tx.amount_disclosed ? tx.amount_formatted : 'Strategic'}
+            <span className="font-medium text-[#e6edf3]">{tx.target_company}</span>
+            <span className="text-[#5c6470]">
+              {tx.amount_disclosed ? tx.amount_formatted : 'Undisclosed'}
             </span>
           </button>
         ))}
