@@ -375,13 +375,14 @@ export default function App() {
     const top = filteredAndSortedArticles.filter(
       (a) => (a.analysis?.importance ?? 5) >= 8
     );
-    const topIds = new Set(top.map((a) => a.id || a.url || a.title));
+    const topSelected = top.slice(0, 5);
+    const topIds = new Set(topSelected.map((a) => a.id || a.url || a.title));
     const rest = filteredAndSortedArticles.filter(
       (a) => !topIds.has(a.id || a.url || a.title)
     );
 
     // If no articles are >= 8, take the first 3 as lead
-    if (top.length === 0 && filteredAndSortedArticles.length > 3) {
+    if (topSelected.length === 0 && filteredAndSortedArticles.length > 3) {
       return {
         topDevelopments: filteredAndSortedArticles.slice(0, 3),
         feedArticles: filteredAndSortedArticles.slice(3),
@@ -389,8 +390,8 @@ export default function App() {
     }
 
     return {
-      topDevelopments: top.slice(0, 5),
-      feedArticles: rest.length > 0 ? rest : [],
+      topDevelopments: topSelected,
+      feedArticles: rest,
     };
   }, [filteredAndSortedArticles, filters]);
 
@@ -527,32 +528,32 @@ export default function App() {
             )}
 
             {/* General Article Feed Section */}
-            <ArticleFeed
-              articles={
-                feedArticles.length > 0
-                  ? feedArticles
-                  : topDevelopments.length === 0
-                  ? filteredAndSortedArticles
-                  : []
-              }
-              onSelectArticle={(art) => setSelectedArticle(art)}
-              title={
-                filters.category === 'Saved'
-                  ? 'Saved Reading List'
-                  : filters.selectedEntity
-                  ? `Dispatches referencing "${filters.selectedEntity}"`
-                  : filters.category !== 'All' && filters.category !== 'Today'
-                  ? `${filters.category} Desk`
-                  : topDevelopments.length > 0
-                  ? 'All Intelligence Dispatches'
-                  : 'Distilled Intelligence Feed'
-              }
-              onResetFilters={handleResetFilters}
-              savedArticleIds={savedArticleIds}
-              onToggleBookmark={handleToggleBookmark}
-              onSelectEntity={(ent) => handleFilterChange({ selectedEntity: ent })}
-              viewMode={filters.viewMode}
-            />
+            {(feedArticles.length > 0 || (topDevelopments.length === 0 && filteredAndSortedArticles.length > 0)) && (
+              <ArticleFeed
+                articles={
+                  feedArticles.length > 0
+                    ? feedArticles
+                    : filteredAndSortedArticles
+                }
+                onSelectArticle={(art) => setSelectedArticle(art)}
+                title={
+                  filters.category === 'Saved'
+                    ? 'Saved Reading List'
+                    : filters.selectedEntity
+                    ? `Dispatches referencing "${filters.selectedEntity}"`
+                    : filters.category !== 'All' && filters.category !== 'Today'
+                    ? `${filters.category} Desk`
+                    : topDevelopments.length > 0
+                    ? 'All Intelligence Dispatches'
+                    : 'Distilled Intelligence Feed'
+                }
+                onResetFilters={handleResetFilters}
+                savedArticleIds={savedArticleIds}
+                onToggleBookmark={handleToggleBookmark}
+                onSelectEntity={(ent) => handleFilterChange({ selectedEntity: ent })}
+                viewMode={filters.viewMode}
+              />
+            )}
           </>
         )}
 

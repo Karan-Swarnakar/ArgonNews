@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, SearchX, RotateCcw } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { Article, ViewMode } from '../types';
 import { ArticleCard } from './ArticleCard';
 
@@ -36,32 +36,7 @@ export const ArticleFeed: React.FC<ArticleFeedProps> = ({
   const isBookmarked = (a: Article) => savedArticleIds.has(a.id || a.url || a.title);
 
   if (articles.length === 0) {
-    return (
-      <div
-        id="empty-articles-state"
-        className="my-16 py-12 text-center max-w-md mx-auto border-t border-b border-[#21262d]"
-      >
-        <div className="mx-auto flex h-10 w-10 items-center justify-center text-[#6e7681] mb-3">
-          <SearchX className="h-6 w-6" />
-        </div>
-        <h3 className="font-serif text-lg font-medium text-[#f0f6fc] mb-1">
-          No dispatches match your query
-        </h3>
-        <p className="text-xs text-[#8b949e] font-sans mb-4 leading-relaxed">
-          Try expanding your search parameters, selecting another desk, or resetting filters.
-        </p>
-        {onResetFilters && (
-          <button
-            id="reset-filter-empty-btn"
-            onClick={onResetFilters}
-            className="inline-flex items-center gap-1.5 font-mono text-xs text-[#58a6ff] hover:text-[#79c0ff] hover:underline cursor-pointer"
-          >
-            <RotateCcw className="h-3 w-3" />
-            <span>Reset filters</span>
-          </button>
-        )}
-      </div>
-    );
+    return null;
   }
 
   const visibleArticles = articles.slice(0, displayCount);
