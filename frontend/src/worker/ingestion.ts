@@ -12,6 +12,7 @@ import {
   extractEntities,
   categorizeArticle,
   computeImportance,
+  isGarbageOrNonArticle,
 } from '../utils/text';
 import { D1Database, Env } from './types';
 import { batchInsertArticlesToD1, pruneOldArticles } from './db';
@@ -105,8 +106,7 @@ export function parseRssOrAtomXml(xml: string, sourceDef: SourceDefinition): Art
       );
       
       const parsedPubDate = dateMatch ? normalizeDate(dateMatch[1]) : undefined;
-      // If the feed gave a valid date, use it; otherwise, use discovered timestamp
-      const published_at = parsedPubDate || now;
+      const published_at = parsedPubDate || undefined;
       const discovered_at = now;
 
       // 4. Extract Description / Content
@@ -119,6 +119,11 @@ export function parseRssOrAtomXml(xml: string, sourceDef: SourceDefinition): Art
       }
 
       const summary = rawDesc || `${sourceDef.name} dispatch on ${title}.`;
+
+      // Reject non-article pages, navigation items, off-topic tech articles
+      if (isGarbageOrNonArticle(title, url, rawDesc, summary)) {
+        continue;
+      }
       const category = categorizeArticle(title, summary, sourceDef.category);
       const { companies, technologies } = extractEntities(`${title} ${summary}`);
 

@@ -13,6 +13,7 @@ interface HeaderProps {
   savedCount: number;
   onOpenSaved: () => void;
   isSavedActive: boolean;
+  lastUpdated?: Date | null;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -25,6 +26,7 @@ export const Header: React.FC<HeaderProps> = ({
   savedCount,
   onOpenSaved,
   isSavedActive,
+  lastUpdated,
 }) => {
   // Format current date in classic broadsheet style
   const currentDate = new Intl.DateTimeFormat('en-US', {
@@ -33,6 +35,13 @@ export const Header: React.FC<HeaderProps> = ({
     day: 'numeric',
     year: 'numeric',
   }).format(new Date());
+
+  const formatLastUpdated = (d: Date) => {
+    const diffMs = Date.now() - d.getTime();
+    if (diffMs < 60000) return 'just now';
+    if (diffMs < 3600000) return `${Math.floor(diffMs / 60000)}m ago`;
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
 
   return (
     <header className="border-b border-[#22272e] bg-[#0c0e11] text-[#e2e8f0]">
@@ -72,6 +81,19 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'Feed Offline'}
               </span>
             </button>
+
+            {lastUpdated && (
+              <>
+                <span className="hidden md:inline text-[#2d333b]">•</span>
+                <span
+                  id="header-last-updated"
+                  className="hidden md:inline text-[11px] text-[#8b949e]"
+                  title={`Refreshed at ${lastUpdated.toLocaleTimeString()}`}
+                >
+                  Last updated {formatLastUpdated(lastUpdated)}
+                </span>
+              </>
+            )}
 
             <span className="text-[#2d333b]">•</span>
 

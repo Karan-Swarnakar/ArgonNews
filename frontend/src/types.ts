@@ -69,3 +69,55 @@ export interface ApiStatus {
   errorMessage: string | null;
   articleCount: number;
 }
+
+/**
+ * AI Financial Ecosystem Transaction Model
+ * Represents real, primary-sourced capital events (investments, M&A, infrastructure commitments).
+ */
+export type TransactionType =
+  | 'Acquisition'
+  | 'Strategic Investment'
+  | 'Equity Round'
+  | 'Infrastructure Commitment'
+  | 'Debt Financing'
+  | 'Licensing & Asset Deal';
+
+export interface AITransaction {
+  id: string;
+  source_company: string; // e.g. "NVIDIA", "Microsoft", "Amazon / AWS"
+  target_company: string; // e.g. "Hugging Face", "OpenAI", "Anthropic"
+  transaction_type: TransactionType;
+  amount: number | null; // numeric USD if disclosed, e.g. 12900000000
+  amount_formatted: string; // e.g. "$12.9 billion" or "Financial value not publicly disclosed"
+  currency: string; // "USD"
+  amount_disclosed: boolean;
+  announcement_date: string; // YYYY-MM-DD
+  description: string;
+  source_name: string; // e.g. "NVIDIA Press Release", "SEC 10-K", "TechCrunch AI"
+  source_url: string;
+  confidence: number; // 0.0 - 1.0
+  created_at: string; // ISO string
+  related_article_id?: string | number;
+  related_article_url?: string;
+  significance_score?: number; // Calculated rank (size, recency, confidence)
+}
+
+export interface AICompanyProfile {
+  id: string;
+  name: string;
+  role: string; // e.g. "AI Hardware & Compute", "Frontier Foundation Models", "Hyperscale Cloud"
+  tier: 'hyperscaler' | 'frontier-lab' | 'hardware' | 'open-source' | 'infrastructure';
+  total_invested_usd: number;
+  total_received_usd: number;
+  transactions_count: number;
+  key_developments: string[];
+}
+
+export interface TransactionDataset {
+  transactions: AITransaction[];
+  companies: AICompanyProfile[];
+  last_updated: string;
+  total_disclosed_volume_usd: number;
+  version: string;
+}
+

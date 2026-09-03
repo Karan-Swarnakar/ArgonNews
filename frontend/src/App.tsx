@@ -13,8 +13,12 @@ import { ArticleDetailModal } from './components/ArticleDetailModal';
 import { BackendStatusModal } from './components/BackendStatusModal';
 import { ErrorBanner } from './components/ErrorBanner';
 import { LoadingSkeleton } from './components/LoadingSkeleton';
+import { AIEcosystemDoodle } from './components/AIEcosystemDoodle';
+import { AIMoneyFlowPreview } from './components/AIMoneyFlowPreview';
+import { AIMoneyFlowExpanded } from './components/AIMoneyFlowExpanded';
 import { getArticles, getCategories, getSources, checkForNewArticles, API_BASE_URL, DEFAULT_USE_MOCK } from './api/articles';
-import { Article, CategoryFilter, FilterState, ApiStatus } from './types';
+import { getTransactions } from './api/transactions';
+import { Article, CategoryFilter, FilterState, ApiStatus, AITransaction } from './types';
 import { Terminal, Shield, Sparkles, ExternalLink, Bookmark, Activity, Building2, ArrowUpCircle } from 'lucide-react';
 
 const SAVED_STORAGE_KEY = 'argon_saved_article_ids';
@@ -67,6 +71,15 @@ export default function App() {
     articleCount: 0,
   });
 
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(new Date());
+
+  // Financial transactions state
+  const [transactions, setTransactions] = useState<AITransaction[]>([]);
+  const [transactionsLastUpdated, setTransactionsLastUpdated] = useState<Date | null>(new Date());
+  const [isMoneyFlowExpanded, setIsMoneyFlowExpanded] = useState<boolean>(false);
+  const [moneyFlowSelectedTxId, setMoneyFlowSelectedTxId] = useState<string | undefined>(undefined);
+  const [moneyFlowSelectedCompany, setMoneyFlowSelectedCompany] = useState<string | undefined>(undefined);
+
   const [filters, setFilters] = useState<FilterState>({
     category: 'Today',
     searchQuery: '',
@@ -77,12 +90,13 @@ export default function App() {
     viewMode: 'editorial',
   });
 
-  // Load articles from the API layer (src/api/articles.ts)
+  // Load articles and transactions from the API layer
   const loadArticles = useCallback(async (forceMock: boolean = useMock) => {
     setIsLoading(true);
     try {
       const result = await getArticles(forceMock);
       setArticles(result.articles);
+      setLastRefreshedAt(new Date());
       setApiStatus({
         isMock: result.isMock,
         connected: !result.error && !result.isMock,
@@ -91,6 +105,15 @@ export default function App() {
         errorMessage: result.error,
         articleCount: result.articles.length,
       });
+
+      // Load transactions augmented with article feed
+      try {
+        const txResult = await getTransactions(result.articles, forceMock);
+        setTransactions(txResult.dataset.transactions);
+        setTransactionsLastUpdated(txResult.lastUpdated);
+      } catch {
+        // Silent fallback for transactions
+      }
     } catch (err: any) {
       setApiStatus((prev) => ({
         ...prev,
@@ -110,42 +133,55 @@ export default function App() {
     loadArticles(useMock);
   }, [useMock, loadArticles]);
 
-  const latestTimestampRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (articles.length > 0 && articles[0]?.published_at) {
-      latestTimestampRef.current = articles[0].published_at;
-    }
-  }, [articles]);
+  // Silent background refresh every 5 minutes
+  // Does NOT show a loading screen, maintains UI/scroll/filter state, and gracefully handles network hiccups
+  const refreshArticlesSilently = useCallback(async () => {
+    try {
+      const freshData = await getArticles(useMock);
+      if (!freshData.articles || freshData.articles.length === 0) return;
 
-  // Periodic background check for newly published articles (every 5 minutes)
-  // Automatically updates the feed without requiring manual page refresh
-  useEffect(() => {
-    if (useMock) return;
+      setArticles((current) => {
+        const currentKeys = new Set(current.map((a) => a.id || a.url || a.title));
+        const hasNewOrDifferent =
+          freshData.articles.some((a) => !currentKeys.has(a.id || a.url || a.title)) ||
+          freshData.articles.length !== current.length;
 
-    const checkInterval = setInterval(async () => {
-      try {
-        const latestTimestamp = latestTimestampRef.current;
-        const result = await checkForNewArticles(latestTimestamp);
-        if (result.hasNew && result.newCount > 0) {
-          setNewAvailableArticles(result.newCount);
-          // Automatically fetch fresh articles into feed without disrupting active reading
-          const freshData = await getArticles(false);
-          if (freshData.articles.length > 0) {
-            setArticles(freshData.articles);
-            setApiStatus((prev) => ({
-              ...prev,
-              lastChecked: new Date(),
-              articleCount: freshData.articles.length,
-            }));
-          }
+        if (hasNewOrDifferent) {
+          return freshData.articles;
         }
+        return current;
+      });
+
+      setLastRefreshedAt(new Date());
+      setApiStatus((prev) => ({
+        ...prev,
+        isMock: freshData.isMock,
+        connected: !freshData.error && !freshData.isMock,
+        endpoint: freshData.sourceEndpoint,
+        lastChecked: new Date(),
+        articleCount: freshData.articles.length,
+      }));
+
+      // Silently refresh transactions dataset
+      try {
+        const freshTx = await getTransactions(freshData.articles, useMock);
+        setTransactions(freshTx.dataset.transactions);
+        setTransactionsLastUpdated(freshTx.lastUpdated);
       } catch {
-        // Quiet background check
+        // preserve current transactions seamlessly
       }
+    } catch {
+      // Quiet background refresh failure: preserve current article feed seamlessly
+    }
+  }, [useMock]);
+
+  useEffect(() => {
+    const checkInterval = setInterval(() => {
+      refreshArticlesSilently();
     }, 5 * 60 * 1000); // 5 minutes
 
     return () => clearInterval(checkInterval);
-  }, [useMock]);
+  }, [refreshArticlesSilently]);
 
   // Apply new live updates to feed without losing scroll context
   const handleApplyNewArticles = async () => {
@@ -395,6 +431,18 @@ export default function App() {
     };
   }, [filteredAndSortedArticles, filters]);
 
+  const handleOpenMoneyFlowExpanded = useCallback((txId?: string, company?: string) => {
+    setMoneyFlowSelectedTxId(txId);
+    setMoneyFlowSelectedCompany(company);
+    setIsMoneyFlowExpanded(true);
+  }, []);
+
+  const handleCloseMoneyFlowExpanded = useCallback(() => {
+    setIsMoneyFlowExpanded(false);
+    setMoneyFlowSelectedTxId(undefined);
+    setMoneyFlowSelectedCompany(undefined);
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#0e1013] text-[#e2e8f0] font-sans flex flex-col selection:bg-amber-500/20 selection:text-amber-200">
       
@@ -410,6 +458,7 @@ export default function App() {
         savedCount={savedArticleIds.size}
         onOpenSaved={() => handleFilterChange({ category: 'Saved' })}
         isSavedActive={filters.category === 'Saved'}
+        lastUpdated={lastRefreshedAt}
       />
 
       {/* 2. Editorial Desks Navigation */}
@@ -444,6 +493,16 @@ export default function App() {
               loadArticles(true);
             }}
             onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
+          />
+        )}
+
+        {/* AI Money Flow: Compact Homepage Preview (Google Doodle-inspired interactive canvas) */}
+        {filters.category !== 'Saved' && !filters.searchQuery && transactions.length > 0 && (
+          <AIMoneyFlowPreview
+            transactions={transactions}
+            lastUpdated={transactionsLastUpdated}
+            onOpenExpanded={handleOpenMoneyFlowExpanded}
+            articles={articles}
           />
         )}
 
@@ -605,6 +664,19 @@ export default function App() {
         onToggleDataSource={handleToggleDataSource}
         onRefresh={() => loadArticles(useMock)}
       />
+
+      {/* 8. AI Money Flow: Fullscreen Immersive Ecosystem Visualization */}
+      {isMoneyFlowExpanded && (
+        <AIMoneyFlowExpanded
+          transactions={transactions}
+          articles={articles}
+          initialSelectedTxId={moneyFlowSelectedTxId}
+          initialSelectedCompany={moneyFlowSelectedCompany}
+          lastUpdated={transactionsLastUpdated}
+          onClose={handleCloseMoneyFlowExpanded}
+          onOpenArticleModal={(article) => setSelectedArticle(article)}
+        />
+      )}
 
     </div>
   );

@@ -451,7 +451,7 @@ export const AI_SOURCES: SourceDefinition[] = [
     source_type: 'Industry Publication',
     reliability: 0.95,
     url: 'https://arstechnica.com/ai/',
-    feed_url: 'https://feeds.arstechnica.com/arstechnica/features',
+    feed_url: 'https://arstechnica.com/tag/ai/feed/',
     description: 'Rigorous technical breakdowns of security vulnerabilities, benchmarks, and model safety.'
   }
 ];

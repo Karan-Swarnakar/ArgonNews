@@ -7,6 +7,9 @@ import { Env, ScheduledEvent, ExecutionContext } from './types';
 import { getArticlesFromD1, getLatestArticleInfo, getDbStats, batchInsertArticlesToD1 } from './db';
 import { runIngestionPipeline } from './ingestion';
 import { MOCK_ARTICLES } from '../data/mockArticles';
+import { VERIFIED_TRANSACTIONS, INITIAL_TRANSACTION_DATASET, buildTransactionDataset } from '../data/mockTransactions';
+import { extractTransactionFromArticle, mergeAndDeduplicateTransactions } from '../utils/transactionExtraction';
+import { Article } from '../types';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -170,6 +173,40 @@ export default {
         );
       } catch (err: any) {
         return jsonResponse({ error: err.message, hasNew: false }, 500);
+      }
+    }
+
+    // 2b. GET /api/transactions - Real-time AI financial transactions & capital network
+    if (url.pathname === '/api/transactions' || url.pathname === '/transactions') {
+      try {
+        let poolArticles: Article[] = MOCK_ARTICLES;
+        if (db) {
+          try {
+            const { articles } = await getArticlesFromD1(db, { limit: 100, sortBy: 'newest' });
+            if (articles && articles.length > 0) {
+              poolArticles = articles;
+            }
+          } catch {
+            // fallback to MOCK_ARTICLES
+          }
+        }
+
+        const extracted = poolArticles
+          .map(extractTransactionFromArticle)
+          .filter((t): t is NonNullable<typeof t> => t !== null);
+
+        const merged = mergeAndDeduplicateTransactions(VERIFIED_TRANSACTIONS, extracted);
+        const dataset = buildTransactionDataset(merged);
+
+        return jsonResponse(
+          dataset,
+          200,
+          {
+            'Cache-Control': 'public, max-age=60, s-maxage=180, stale-while-revalidate=300',
+          }
+        );
+      } catch (err: any) {
+        return jsonResponse(INITIAL_TRANSACTION_DATASET, 200);
       }
     }
 

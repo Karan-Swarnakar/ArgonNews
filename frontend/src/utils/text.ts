@@ -9,11 +9,16 @@ const HTML_ENTITIES: Record<string, string> = {
   '&gt;': '>',
   '&quot;': '"',
   '&#39;': "'",
+  '&#039;': "'",
   '&apos;': "'",
   '&nbsp;': ' ',
+  '&#160;': ' ',
   '&copy;': '©',
+  '&#169;': '©',
   '&reg;': '®',
+  '&#174;': '®',
   '&trade;': '™',
+  '&#8482;': '™',
   '&mdash;': '—',
   '&#8212;': '—',
   '&ndash;': '–',
@@ -24,10 +29,14 @@ const HTML_ENTITIES: Record<string, string> = {
   '&#8216;': '‘',
   '&rsquo;': '’',
   '&#8217;': '’',
+  '&sbquo;': '‚',
+  '&#8218;': '‚',
   '&ldquo;': '“',
   '&#8220;': '“',
   '&rdquo;': '”',
   '&#8221;': '”',
+  '&bdquo;': '„',
+  '&#8222;': '„',
   '&bull;': '•',
   '&#8226;': '•',
   '&euro;': '€',
@@ -44,15 +53,21 @@ const HTML_ENTITIES: Record<string, string> = {
   '&#171;': '«',
   '&raquo;': '»',
   '&#187;': '»',
+  '&middot;': '·',
+  '&#183;': '·',
+  '&prime;': '′',
+  '&#8242;': '′',
+  '&Prime;': '″',
+  '&#8243;': '″',
+  '&tilde;': '~',
+  '&#126;': '~',
 };
 
 /**
- * Fully decodes all HTML entities (named, decimal &#123;, and hex &#x1F;)
- * and strips HTML tags/CDATA cleanly.
+ * Single-pass entity and tag cleaner.
  */
-export function decodeHtmlEntities(raw?: string | null): string {
-  if (!raw) return '';
-  let str = String(raw);
+function decodeSinglePass(raw: string): string {
+  let str = raw;
 
   // 1. Unwrap CDATA blocks
   str = str.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1');
@@ -66,30 +81,58 @@ export function decodeHtmlEntities(raw?: string | null): string {
 
   // 4. Decode named entities
   for (const [entity, replacement] of Object.entries(HTML_ENTITIES)) {
-    str = str.split(entity).join(replacement);
+    if (str.includes(entity)) {
+      str = str.split(entity).join(replacement);
+    }
   }
 
-  // 5. Decode decimal numeric entities like &#8217; or &#39;
-  str = str.replace(/&#(\d+);/g, (_, dec) => {
+  // 5. Decode decimal numeric entities like &#8217;, &#039;, or &#39;
+  str = str.replace(/&#(\d+);/g, (match, dec) => {
     try {
       const code = parseInt(dec, 10);
-      return String.fromCharCode(code);
+      if (code > 0 && code < 65536) {
+        return String.fromCharCode(code);
+      }
+      return match;
     } catch {
-      return _;
+      return match;
     }
   });
 
-  // 6. Decode hex numeric entities like &#x2019;
-  str = str.replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => {
+  // 6. Decode hex numeric entities like &#x2019; or &#x27;
+  str = str.replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => {
     try {
       const code = parseInt(hex, 16);
-      return String.fromCharCode(code);
+      if (code > 0 && code < 65536) {
+        return String.fromCharCode(code);
+      }
+      return match;
     } catch {
-      return _;
+      return match;
     }
   });
 
-  // 7. Normalize multiple whitespaces
+  return str;
+}
+
+/**
+ * Fully decodes all HTML entities (named, decimal, hex, multi-pass double-encoded)
+ * and strips HTML tags/CDATA cleanly.
+ * Guarantees strings like "AI &#8216;teammate&#8217;" become "AI ‘teammate’".
+ */
+export function decodeHtmlEntities(raw?: string | null): string {
+  if (!raw) return '';
+  let str = String(raw);
+
+  // First decode pass
+  str = decodeSinglePass(str);
+
+  // Second pass if double-encoded entities remain (e.g. &amp;#8217; or &amp;lsquo;)
+  if (str.includes('&') && (str.includes('&#') || /&[a-zA-Z]+;/.test(str))) {
+    str = decodeSinglePass(str);
+  }
+
+  // Normalize multiple whitespaces
   return str.replace(/\s+/g, ' ').trim();
 }
 
@@ -447,4 +490,152 @@ export function computeImportance(title: string, summary: string, sourceReliabil
   }
 
   return Math.max(1, Math.min(10, Math.round(score)));
+}
+
+/**
+ * Checks if candidate is an obvious non-article, navigation page, terms/privacy page,
+ * or garbage/off-topic entry that should be rejected.
+ */
+export function isGarbageOrNonArticle(
+  title?: string | null,
+  url?: string | null,
+  content?: string | null,
+  summary?: string | null
+): boolean {
+  if (!title || typeof title !== 'string') return true;
+  const cleanTitle = title.trim();
+  if (cleanTitle.length < 10) return true;
+
+  const tLower = cleanTitle.toLowerCase();
+  const cLower = `${content || ''} ${summary || ''}`.toLowerCase();
+  const uLower = (url || '').toLowerCase();
+
+  // 1. Obvious navigation and UI anchors
+  const NAVIGATION_PATTERNS = [
+    'skip to main content',
+    'skip to content',
+    'skip navigation',
+    'terms of service',
+    'privacy policy',
+    'cookie policy',
+    'cookie settings',
+    'terms and conditions',
+    'all rights reserved',
+    'subscribe to newsletter',
+    'newsletter signup',
+    'sign in',
+    'log in',
+    'register',
+    'my account',
+    'page not found',
+    '404 not found',
+    'access denied',
+    'attention required',
+    'cloudflare',
+    'please enable javascript',
+  ];
+
+  for (const pattern of NAVIGATION_PATTERNS) {
+    if (tLower.includes(pattern) || (cLower.length < 300 && cLower.includes(pattern))) {
+      return true;
+    }
+  }
+
+  // 2. Generic site homepage / category / index titles
+  const GENERIC_TITLES = new Set([
+    'home',
+    'homepage',
+    'index',
+    'articles',
+    'news',
+    'blog',
+    'archives',
+    'latest news',
+    'all posts',
+    'search results',
+    'tag',
+    'category',
+    'author',
+    'feed',
+    'rss',
+  ]);
+
+  if (GENERIC_TITLES.has(tLower) || GENERIC_TITLES.has(tLower.replace(/[^a-z]/g, ''))) {
+    return true;
+  }
+
+  // 3. URL pattern rejections (category/tag index pages, author pages, homepage roots)
+  if (uLower) {
+    try {
+      const parsed = new URL(uLower);
+      const path = parsed.pathname.replace(/\/$/, '');
+      if (!path || path === '' || path === '/news' || path === '/blog' || path === '/articles' || path === '/research') {
+        // Root or section root URL without slug
+        return true;
+      }
+      if (
+        path.startsWith('/tag/') ||
+        path.startsWith('/category/') ||
+        path.startsWith('/author/') ||
+        path.startsWith('/page/') ||
+        path.startsWith('/search/')
+      ) {
+        return true;
+      }
+    } catch {
+      // Invalid URL
+      return true;
+    }
+  }
+
+  // 4. Filter completely off-topic non-AI items from broad technology feeds (e.g. e-bikes, cars)
+  const OFF_TOPIC_KEYWORDS = [
+    'e-bike',
+    'electric bicycle',
+    'cargo bike',
+    'swoop asm',
+    'rented a car',
+    'driver\'s license for sale',
+    'mars rover helicopters',
+  ];
+  for (const kw of OFF_TOPIC_KEYWORDS) {
+    if (tLower.includes(kw)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Sorts articles strictly newest publication date -> oldest publication date.
+ * Articles with invalid or missing publication dates are placed at the END of the list
+ * and will NEVER falsely appear as the newest articles.
+ */
+export function sortArticlesNewestFirst<
+  T extends { published_at?: string | null; discovered_at?: string | null; analysis?: { importance?: number } }
+>(articles: T[]): T[] {
+  return [...articles].sort((a, b) => {
+    const timeA = a.published_at ? new Date(a.published_at).getTime() : NaN;
+    const timeB = b.published_at ? new Date(b.published_at).getTime() : NaN;
+    const hasA = !isNaN(timeA) && timeA > 0;
+    const hasB = !isNaN(timeB) && timeB > 0;
+
+    // Both have valid publication dates: newest first
+    if (hasA && hasB) {
+      if (timeB !== timeA) return timeB - timeA;
+      return (b.analysis?.importance ?? 5) - (a.analysis?.importance ?? 5);
+    }
+
+    // Article with valid date MUST precede article without valid date
+    if (hasA && !hasB) return -1;
+    if (!hasA && hasB) return 1;
+
+    // Neither has a valid publication date: sort by discovered_at, then importance
+    const discA = a.discovered_at ? new Date(a.discovered_at).getTime() : 0;
+    const discB = b.discovered_at ? new Date(b.discovered_at).getTime() : 0;
+    if (discB !== discA) return discB - discA;
+
+    return (b.analysis?.importance ?? 5) - (a.analysis?.importance ?? 5);
+  });
 }

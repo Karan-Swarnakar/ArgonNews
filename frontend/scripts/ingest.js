@@ -17,38 +17,310 @@ const MOCK_ARTICLES_PATH = path.resolve(ROOT_DIR, 'src', 'data', 'mockArticles.t
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 (ArgonNewsBot/2.0)';
 
-// Helper to strip HTML tags and CDATA
-function cleanText(raw) {
-  if (!raw) return '';
-  return String(raw)
-    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+// Mapping of common and special HTML entities
+const HTML_ENTITIES = {
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&#39;': "'",
+  '&#039;': "'",
+  '&apos;': "'",
+  '&nbsp;': ' ',
+  '&#160;': ' ',
+  '&copy;': '©',
+  '&#169;': '©',
+  '&reg;': '®',
+  '&#174;': '®',
+  '&trade;': '™',
+  '&#8482;': '™',
+  '&mdash;': '—',
+  '&#8212;': '—',
+  '&ndash;': '–',
+  '&#8211;': '–',
+  '&hellip;': '…',
+  '&#8230;': '…',
+  '&lsquo;': '‘',
+  '&#8216;': '‘',
+  '&rsquo;': '’',
+  '&#8217;': '’',
+  '&sbquo;': '‚',
+  '&#8218;': '‚',
+  '&ldquo;': '“',
+  '&#8220;': '“',
+  '&rdquo;': '”',
+  '&#8221;': '”',
+  '&bdquo;': '„',
+  '&#8222;': '„',
+  '&bull;': '•',
+  '&#8226;': '•',
+  '&euro;': '€',
+  '&#8364;': '€',
+  '&pound;': '£',
+  '&#163;': '£',
+  '&yen;': '¥',
+  '&#165;': '¥',
+  '&sect;': '§',
+  '&#167;': '§',
+  '&cent;': '¢',
+  '&#162;': '¢',
+  '&laquo;': '«',
+  '&#171;': '«',
+  '&raquo;': '»',
+  '&#187;': '»',
+  '&middot;': '·',
+  '&#183;': '·',
+  '&prime;': '′',
+  '&#8242;': '′',
+  '&Prime;': '″',
+  '&#8243;': '″',
+  '&tilde;': '~',
+  '&#126;': '~',
+};
+
+// Single-pass entity and tag decoder
+function decodeSinglePass(raw) {
+  let str = String(raw);
+  str = str.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1');
+  str = str.replace(/<script[\s\S]*?<\/script>/gi, ' ');
+  str = str.replace(/<style[\s\S]*?<\/style>/gi, ' ');
+  str = str.replace(/<[^>]+>/g, ' ');
+
+  for (const [entity, replacement] of Object.entries(HTML_ENTITIES)) {
+    if (str.includes(entity)) {
+      str = str.split(entity).join(replacement);
+    }
+  }
+
+  // Decimal entities &#8217;, &#039;, &#39;
+  str = str.replace(/&#(\d+);/g, (match, dec) => {
+    try {
+      const code = parseInt(dec, 10);
+      if (code > 0 && code < 65536) {
+        return String.fromCharCode(code);
+      }
+      return match;
+    } catch {
+      return match;
+    }
+  });
+
+  // Hex entities &#x2019;, &#x27;
+  str = str.replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => {
+    try {
+      const code = parseInt(hex, 16);
+      if (code > 0 && code < 65536) {
+        return String.fromCharCode(code);
+      }
+      return match;
+    } catch {
+      return match;
+    }
+  });
+
+  return str;
 }
 
-// Robust ISO Date Normalizer
+// Helper to strip HTML tags, CDATA, and multi-pass decode all HTML entities
+function cleanText(raw) {
+  if (!raw) return '';
+  let str = decodeSinglePass(raw);
+  if (str.includes('&') && (str.includes('&#') || /&[a-zA-Z]+;/.test(str))) {
+    str = decodeSinglePass(str);
+  }
+  return str.replace(/\s+/g, ' ').trim();
+}
+
+// Known timezone abbreviations mapped to numeric offsets for reliable V8 parsing
+const TIMEZONE_OFFSETS = {
+  EDT: '-0400',
+  EST: '-0500',
+  CDT: '-0500',
+  CST: '-0600',
+  MDT: '-0600',
+  MST: '-0700',
+  PDT: '-0700',
+  PST: '-0800',
+  AKDT: '-0800',
+  AKST: '-0900',
+  HST: '-1000',
+  BST: '+0100',
+  CET: '+0100',
+  CEST: '+0200',
+  UTC: '+0000',
+  GMT: '+0000',
+};
+
+// Robust ISO Date Normalizer - returns undefined if unparseable or out-of-bounds (no fake dates)
 function normalizeDate(rawDate) {
   if (!rawDate) return undefined;
-  const clean = String(rawDate).trim();
+  let clean = String(rawDate).trim();
   if (!clean) return undefined;
-  
-  const parsed = Date.parse(clean);
-  if (!isNaN(parsed)) {
-    return new Date(parsed).toISOString();
+
+  clean = clean.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1').trim();
+  clean = cleanText(clean);
+
+  for (const [tz, offset] of Object.entries(TIMEZONE_OFFSETS)) {
+    const tzRegex = new RegExp(`\\b${tz}\\b`, 'g');
+    if (tzRegex.test(clean)) {
+      clean = clean.replace(tzRegex, offset);
+      break;
+    }
   }
-  
-  const d = new Date(clean);
-  if (!isNaN(d.getTime())) {
-    return d.toISOString();
+
+  let timestamp = Date.parse(clean);
+
+  if (isNaN(timestamp)) {
+    const matchYMD = clean.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|([+-]\d{2}:?\d{2}))?$/);
+    if (matchYMD) {
+      timestamp = Date.parse(`${matchYMD[1]}-${matchYMD[2]}-${matchYMD[3]}T${matchYMD[4]}:${matchYMD[5]}:${matchYMD[6]}${matchYMD[7] || 'Z'}`);
+    }
   }
-  return undefined;
+
+  if (isNaN(timestamp)) {
+    const matchDateOnly = clean.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (matchDateOnly) {
+      timestamp = Date.parse(`${clean}T00:00:00Z`);
+    }
+  }
+
+  if (isNaN(timestamp)) {
+    return undefined;
+  }
+
+  const d = new Date(timestamp);
+  const timeMs = d.getTime();
+
+  // Validate bounds: Must be a plausible modern date (e.g. >= 2018) and not > 2 days in the future
+  const maxFuture = Date.now() + 2 * 24 * 60 * 60 * 1000;
+  const minPast = new Date('2018-01-01T00:00:00Z').getTime();
+
+  if (timeMs < minPast || timeMs > maxFuture) {
+    return undefined;
+  }
+
+  return d.toISOString();
+}
+
+// Garbage & Non-Article Page Detector
+function isGarbageOrNonArticle(title, url, content, summary, sourceDef) {
+  if (!title || typeof title !== 'string') return true;
+  const cleanTitle = title.trim();
+  if (cleanTitle.length < 10) return true;
+
+  const tLower = cleanTitle.toLowerCase();
+  const cLower = `${content || ''} ${summary || ''}`.toLowerCase();
+  const uLower = (url || '').toLowerCase();
+
+  // Obvious navigation and UI anchors
+  const NAVIGATION_PATTERNS = [
+    'skip to main content',
+    'skip to content',
+    'skip navigation',
+    'terms of service',
+    'privacy policy',
+    'cookie policy',
+    'cookie settings',
+    'terms and conditions',
+    'all rights reserved',
+    'subscribe to newsletter',
+    'newsletter signup',
+    'sign in',
+    'log in',
+    'register',
+    'my account',
+    'page not found',
+    '404 not found',
+    'access denied',
+    'attention required',
+    'cloudflare',
+    'please enable javascript',
+  ];
+
+  for (const pattern of NAVIGATION_PATTERNS) {
+    if (tLower.includes(pattern) || (cLower.length < 300 && cLower.includes(pattern))) {
+      return true;
+    }
+  }
+
+  // Generic site homepage / category / index titles
+  const GENERIC_TITLES = new Set([
+    'home',
+    'homepage',
+    'index',
+    'articles',
+    'news',
+    'blog',
+    'archives',
+    'latest news',
+    'all posts',
+    'search results',
+    'tag',
+    'category',
+    'author',
+    'feed',
+    'rss',
+  ]);
+
+  if (GENERIC_TITLES.has(tLower) || GENERIC_TITLES.has(tLower.replace(/[^a-z]/g, ''))) {
+    return true;
+  }
+
+  // URL pattern rejections
+  if (uLower) {
+    try {
+      const parsed = new URL(uLower);
+      const path = parsed.pathname.replace(/\/$/, '');
+      if (!path || path === '' || path === '/news' || path === '/blog' || path === '/articles' || path === '/research') {
+        return true;
+      }
+      if (
+        path.startsWith('/tag/') ||
+        path.startsWith('/category/') ||
+        path.startsWith('/author/') ||
+        path.startsWith('/page/') ||
+        path.startsWith('/search/')
+      ) {
+        return true;
+      }
+    } catch {
+      return true;
+    }
+  }
+
+  // For general technology publications (Ars Technica, The Verge, MIT Tech Review, Wired, TechCrunch),
+  // filter out off-topic non-AI items like e-bikes, cars, helicopters, audio gear
+  const isBroadMedia = !sourceDef || /ars-technica|verge|wired|techcrunch|mit-tech-review|venturebeat|ieee/i.test(sourceDef.id);
+  if (isBroadMedia) {
+    const aiKeywords = [
+      'ai', 'llm', 'gpt', 'claude', 'gemini', 'deepseek', 'mistral', 'transformer',
+      'machine learning', 'deep learning', 'neural', 'robotics', 'autonomous', 'model',
+      'reasoning', 'compute', 'gpu', 'nvidia', 'agent', 'benchmark', 'synthetic data',
+      'diffusion', 'rlhf', 'alignment', 'safety', 'vision-language', 'qwen', 'llama',
+      'openai', 'anthropic', 'meta ai', 'deepmind', 'supercomputer', 'silicon', 'semiconductor',
+      'weights', 'token', 'fine-tuning', 'pretraining', 'inference', 'cot', 'reinforcement learning'
+    ];
+    const combined = `${tLower} ${cLower}`;
+    const matchesAI = aiKeywords.some(kw => {
+      const regex = new RegExp(`\\b${kw}\\b`, 'i');
+      return regex.test(combined);
+    });
+    if (!matchesAI) {
+      return true;
+    }
+  }
+
+  // Explicit off-topic keywords
+  const OFF_TOPIC = [
+    'e-bike', 'cargo bike', 'electric bicycle', 'swoop asm',
+    'rented a car', 'driver\'s license for sale', 'helicopters or bust',
+    'nasa\'s mars program', 'mars rover'
+  ];
+  for (const ot of OFF_TOPIC) {
+    if (tLower.includes(ot)) return true;
+  }
+
+  return false;
 }
 
 // Extract company and technology tags from text
@@ -161,6 +433,11 @@ function parseXmlFeed(xml, sourceDef) {
       rawDesc = rawDesc.slice(0, 480) + '...';
     }
     const summary = rawDesc || `${sourceDef.name} dispatch on ${title}.`;
+
+    // Reject non-article pages, navigation items, off-topic tech articles
+    if (isGarbageOrNonArticle(title, url, rawDesc, summary, sourceDef)) {
+      continue;
+    }
     
     const cat = categorize(title, summary, sourceDef.category);
     const { companies, technologies } = extractEntities(title + ' ' + summary);
@@ -178,7 +455,8 @@ function parseXmlFeed(xml, sourceDef) {
       source_type: sourceDef.source_type,
       reliability: sourceDef.reliability,
       category: cat,
-      published_at: published_at || new Date(Date.now() - Math.floor(Math.random() * 86400000 * 3)).toISOString(),
+      published_at: published_at || undefined,
+      discovered_at: new Date().toISOString(),
       content: rawDesc || summary,
       analysis: {
         summary: summary.length > 250 ? summary.slice(0, 240) + '...' : summary,
@@ -808,6 +1086,12 @@ export async function runIngestion() {
   
   function addArticle(art) {
     if (!art.title || !art.url) return;
+    art.title = cleanText(art.title);
+    if (art.content) art.content = cleanText(art.content);
+    if (art.analysis?.summary) art.analysis.summary = cleanText(art.analysis.summary);
+    if (art.analysis?.why_it_matters) art.analysis.why_it_matters = cleanText(art.analysis.why_it_matters);
+    if (isGarbageOrNonArticle(art.title, art.url, art.content, art.analysis?.summary)) return;
+
     const normUrl = art.url.toLowerCase().replace(/\/$/, '').split('?')[0];
     const normTitle = art.title.toLowerCase().replace(/[^a-z0-9]/g, '');
     
@@ -885,12 +1169,24 @@ export async function runIngestion() {
   }
 
   // 3. Strict Sort by publication time (Newest First) as mandated by default
+  // Articles with valid dates MUST appear before articles with missing/invalid dates
   allArticles.sort((a, b) => {
-    const timeA = new Date(a.published_at || 0).getTime();
-    const timeB = new Date(b.published_at || 0).getTime();
-    if (timeB !== timeA) {
-      return timeB - timeA;
+    const timeA = a.published_at ? new Date(a.published_at).getTime() : NaN;
+    const timeB = b.published_at ? new Date(b.published_at).getTime() : NaN;
+    const hasA = !isNaN(timeA) && timeA > 0;
+    const hasB = !isNaN(timeB) && timeB > 0;
+
+    if (hasA && hasB) {
+      if (timeB !== timeA) return timeB - timeA;
+      return (b.analysis?.importance ?? 5) - (a.analysis?.importance ?? 5);
     }
+    if (hasA && !hasB) return -1;
+    if (!hasA && hasB) return 1;
+
+    const discA = a.discovered_at ? new Date(a.discovered_at).getTime() : 0;
+    const discB = b.discovered_at ? new Date(b.discovered_at).getTime() : 0;
+    if (discB !== discA) return discB - discA;
+
     return (b.analysis?.importance ?? 5) - (a.analysis?.importance ?? 5);
   });
 

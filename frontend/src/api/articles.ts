@@ -15,7 +15,7 @@
 import { Article } from '../types';
 import { MOCK_ARTICLES } from '../data/mockArticles';
 import { AI_SOURCES, SourceDefinition } from '../data/sources';
-import { decodeHtmlEntities } from '../utils/text';
+import { decodeHtmlEntities, sortArticlesNewestFirst } from '../utils/text';
 
 export { AI_SOURCES };
 export type { SourceDefinition };
@@ -206,20 +206,14 @@ export async function getArticles(
 
       const normalizedArticles = rawList.map((item, index) => normalizeArticle(item, index));
       const deduplicated = deduplicateArticles(normalizedArticles);
-
-      // Ensure chronological ordering (newest first)
-      deduplicated.sort((a, b) => {
-        const timeA = a.published_at ? new Date(a.published_at).getTime() : 0;
-        const timeB = b.published_at ? new Date(b.published_at).getTime() : 0;
-        return timeB - timeA;
-      });
+      const sorted = sortArticlesNewestFirst(deduplicated);
 
       return {
-        articles: deduplicated,
+        articles: sorted,
         isMock: !isLiveEndpoint,
         sourceEndpoint: endpoint,
         error: null,
-        total: data.total || deduplicated.length,
+        total: data.total || sorted.length,
         lastUpdated: data.lastUpdated,
       };
     } catch (err: any) {
@@ -228,9 +222,11 @@ export async function getArticles(
   }
 
   // 3. Fallback to embedded verified baseline if all network fetches fail
-  const fallback = MOCK_ARTICLES.map((a, i) => normalizeArticle(a, i));
+  const fallback = sortArticlesNewestFirst(
+    deduplicateArticles(MOCK_ARTICLES.map((a, i) => normalizeArticle(a, i)))
+  );
   return {
-    articles: deduplicateArticles(fallback),
+    articles: fallback,
     isMock: true,
     sourceEndpoint: 'Embedded Primary Catalog (Offline Fallback)',
     error: lastError ? lastError.message : null,

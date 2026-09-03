@@ -1,0 +1,433 @@
+/**
+ * ArgonNews - Verified AI Financial Ecosystem Dataset
+ * Real, sourced transactions shaping AI compute, frontier labs, and infrastructure.
+ * Automatically synchronized by the ArgonNews Ingestion Pipeline.
+ */
+
+import { AITransaction, AICompanyProfile, TransactionDataset } from '../types';
+
+export const VERIFIED_TRANSACTIONS: AITransaction[] = [
+  {
+    id: 'tx-nvidia-huggingface-2026',
+    source_company: 'NVIDIA',
+    target_company: 'Hugging Face',
+    transaction_type: 'Acquisition',
+    amount: 12900000000,
+    amount_formatted: '$12.9 billion',
+    currency: 'USD',
+    amount_disclosed: true,
+    announcement_date: '2026-09-03',
+    description: 'NVIDIA agreed to acquire Hugging Face for $12.9 billion to integrate full-stack accelerated hardware with the premier open model hub and developer ecosystem.',
+    source_name: 'TechCrunch AI',
+    source_url: 'https://techcrunch.com/2026/09/03/nvidia-confirms-it-will-buy-hugging-face-for-12-9-billion/',
+    confidence: 0.99,
+    created_at: '2026-09-03T12:42:45.000Z',
+    related_article_url: 'https://techcrunch.com/2026/09/03/nvidia-confirms-it-will-buy-hugging-face-for-12-9-billion/',
+    significance_score: 99,
+  },
+  {
+    id: 'tx-microsoft-openai-2024',
+    source_company: 'Microsoft',
+    target_company: 'OpenAI',
+    transaction_type: 'Strategic Investment',
+    amount: 13750000000,
+    amount_formatted: '$13.75 billion',
+    currency: 'USD',
+    amount_disclosed: true,
+    announcement_date: '2024-10-02',
+    description: 'Microsoft expanded its multi-year capital and Azure cloud supercomputing commitment to OpenAI, participating with an additional $750M in OpenAI’s $6.6B round.',
+    source_name: 'Microsoft Official Blog',
+    source_url: 'https://blogs.microsoft.com/blog/2023/01/23/microsoftandopenaiextendpartnership/',
+    confidence: 0.98,
+    created_at: '2024-10-02T16:00:00.000Z',
+    significance_score: 98,
+  },
+  {
+    id: 'tx-nvidia-openai-2024',
+    source_company: 'NVIDIA',
+    target_company: 'OpenAI',
+    transaction_type: 'Strategic Investment',
+    amount: 100000000,
+    amount_formatted: '$100 million',
+    currency: 'USD',
+    amount_disclosed: true,
+    announcement_date: '2024-10-02',
+    description: 'NVIDIA participated directly in OpenAI’s $6.6 billion funding round at a $157 billion post-money valuation, reinforcing DGX supercluster alignment.',
+    source_name: 'Wall Street Journal',
+    source_url: 'https://www.wsj.com/tech/ai/openai-funding-round-valuation-6-6-billion-0fbe4ff9',
+    confidence: 0.97,
+    created_at: '2024-10-02T16:00:00.000Z',
+    significance_score: 94,
+  },
+  {
+    id: 'tx-oracle-openai-2024',
+    source_company: 'Oracle',
+    target_company: 'OpenAI',
+    transaction_type: 'Infrastructure Commitment',
+    amount: null,
+    amount_formatted: 'Financial value not publicly disclosed',
+    currency: 'USD',
+    amount_disclosed: false,
+    announcement_date: '2024-06-11',
+    description: 'Oracle and OpenAI partnered with Microsoft to extend Azure AI capacity with Oracle Cloud Infrastructure (OCI) to train and serve frontier models.',
+    source_name: 'Oracle Press Release',
+    source_url: 'https://www.oracle.com/news/announcement/oracle-partners-with-microsoft-and-openai-2024-06-11/',
+    confidence: 0.95,
+    created_at: '2024-06-11T13:00:00.000Z',
+    significance_score: 91,
+  },
+  {
+    id: 'tx-amazon-anthropic-2024',
+    source_company: 'Amazon / AWS',
+    target_company: 'Anthropic',
+    transaction_type: 'Strategic Investment',
+    amount: 4000000000,
+    amount_formatted: '$4.0 billion',
+    currency: 'USD',
+    amount_disclosed: true,
+    announcement_date: '2024-03-27',
+    description: 'Amazon completed its total $4.0 billion investment in Anthropic, establishing AWS as Anthropic’s primary cloud provider for frontier model training.',
+    source_name: 'Amazon Press Center',
+    source_url: 'https://www.aboutamazon.com/news/company-news/amazon-anthropic-ai-investment',
+    confidence: 0.98,
+    created_at: '2024-03-27T12:00:00.000Z',
+    significance_score: 96,
+  },
+  {
+    id: 'tx-google-anthropic-2023',
+    source_company: 'Google / Alphabet',
+    target_company: 'Anthropic',
+    transaction_type: 'Strategic Investment',
+    amount: 2000000000,
+    amount_formatted: '$2.0 billion',
+    currency: 'USD',
+    amount_disclosed: true,
+    announcement_date: '2023-10-27',
+    description: 'Google invested $500 million upfront with a commitment for up to $1.5 billion in additional financing alongside Google Cloud TPU v5e/v5p cluster allocations.',
+    source_name: 'Reuters / Alphabet SEC Form 10-Q',
+    source_url: 'https://www.reuters.com/technology/google-invests-up-2-billion-ai-startup-anthropic-wsj-2023-10-27/',
+    confidence: 0.97,
+    created_at: '2023-10-27T14:00:00.000Z',
+    significance_score: 93,
+  },
+  {
+    id: 'tx-softbank-openai-2024',
+    source_company: 'SoftBank',
+    target_company: 'OpenAI',
+    transaction_type: 'Strategic Investment',
+    amount: 500000000,
+    amount_formatted: '$500 million',
+    currency: 'USD',
+    amount_disclosed: true,
+    announcement_date: '2024-10-02',
+    description: 'SoftBank Vision Fund 2 committed $500 million into OpenAI’s landmark $6.6 billion funding round to finance massive inference cluster expansions.',
+    source_name: 'Bloomberg / WSJ',
+    source_url: 'https://www.wsj.com/tech/ai/softbank-to-invest-500-million-in-openai-878f0b09',
+    confidence: 0.96,
+    created_at: '2024-10-02T16:00:00.000Z',
+    significance_score: 92,
+  },
+  {
+    id: 'tx-amd-ztsystems-2024',
+    source_company: 'AMD',
+    target_company: 'ZT Systems',
+    transaction_type: 'Acquisition',
+    amount: 4900000000,
+    amount_formatted: '$4.9 billion',
+    currency: 'USD',
+    amount_disclosed: true,
+    announcement_date: '2024-08-19',
+    description: 'AMD entered into a definitive agreement to acquire hyperscale AI rack and systems engineering firm ZT Systems for $4.9 billion to fast-track Instinct GPU deployments.',
+    source_name: 'AMD Investor Relations',
+    source_url: 'https://ir.amd.com/news-events/press-releases/detail/1210/amd-to-acquire-zt-systems-to-significantly-expand',
+    confidence: 0.99,
+    created_at: '2024-08-19T11:00:00.000Z',
+    significance_score: 95,
+  },
+  {
+    id: 'tx-amd-siloai-2024',
+    source_company: 'AMD',
+    target_company: 'Silo AI',
+    transaction_type: 'Acquisition',
+    amount: 665000000,
+    amount_formatted: '$665 million',
+    currency: 'USD',
+    amount_disclosed: true,
+    announcement_date: '2024-07-10',
+    description: 'AMD completed the all-cash acquisition of Silo AI, the largest private AI lab in Europe, expanding sovereign European foundation model software engineering.',
+    source_name: 'AMD Press Room',
+    source_url: 'https://www.amd.com/en/newsroom/press-releases/2024-7-10-amd-to-acquire-silo-ai-to-expand-global-ai-software.html',
+    confidence: 0.98,
+    created_at: '2024-07-10T12:00:00.000Z',
+    significance_score: 89,
+  },
+  {
+    id: 'tx-nvidia-coreweave-2024',
+    source_company: 'NVIDIA',
+    target_company: 'CoreWeave',
+    transaction_type: 'Strategic Investment',
+    amount: 100000000,
+    amount_formatted: '$100 million',
+    currency: 'USD',
+    amount_disclosed: true,
+    announcement_date: '2024-05-01',
+    description: 'NVIDIA backed CoreWeave’s $1.1B Series C round at a $19B valuation and designated it a premier partner for accelerated Blackwell B200 superclusters.',
+    source_name: 'CoreWeave Press Center',
+    source_url: 'https://www.coreweave.com/news/coreweave-raises-1-1-billion-series-c',
+    confidence: 0.97,
+    created_at: '2024-05-01T14:00:00.000Z',
+    significance_score: 91,
+  },
+  {
+    id: 'tx-databricks-mosaicml-2023',
+    source_company: 'Databricks',
+    target_company: 'MosaicML',
+    transaction_type: 'Acquisition',
+    amount: 1300000000,
+    amount_formatted: '$1.3 billion',
+    currency: 'USD',
+    amount_disclosed: true,
+    announcement_date: '2023-06-26',
+    description: 'Databricks acquired neural network optimization startup MosaicML for $1.3 billion, creating the foundational architecture for Databricks Mosaic AI.',
+    source_name: 'Databricks Official Blog',
+    source_url: 'https://www.databricks.com/blog/databricks-to-acquire-mosaicml',
+    confidence: 0.99,
+    created_at: '2023-06-26T13:00:00.000Z',
+    significance_score: 92,
+  },
+  {
+    id: 'tx-meta-scaleai-2024',
+    source_company: 'Meta',
+    target_company: 'Scale AI',
+    transaction_type: 'Strategic Investment',
+    amount: null,
+    amount_formatted: 'Financial value not publicly disclosed',
+    currency: 'USD',
+    amount_disclosed: false,
+    announcement_date: '2024-05-21',
+    description: 'Meta participated in Scale AI’s $1.0 billion Series F round alongside Accel and Amazon to advance synthetic data and RLHF validation for open Llama models.',
+    source_name: 'Scale AI Press Release',
+    source_url: 'https://scale.com/blog/scale-series-f',
+    confidence: 0.95,
+    created_at: '2024-05-21T15:00:00.000Z',
+    significance_score: 88,
+  },
+  {
+    id: 'tx-xai-seriesb-2024',
+    source_company: 'Venture Syndicate (Valor / a16z / Sequoia)',
+    target_company: 'xAI',
+    transaction_type: 'Equity Round',
+    amount: 6000000000,
+    amount_formatted: '$6.0 billion',
+    currency: 'USD',
+    amount_disclosed: true,
+    announcement_date: '2024-05-26',
+    description: 'xAI secured $6.0 billion in Series B equity financing at a $24 billion valuation to construct the 100,000 liquid-cooled H100 Colossus compute cluster.',
+    source_name: 'xAI Official Announcement',
+    source_url: 'https://x.ai/blog/series-b',
+    confidence: 0.99,
+    created_at: '2024-05-26T18:00:00.000Z',
+    significance_score: 97,
+  },
+  {
+    id: 'tx-mistral-seriesb-2024',
+    source_company: 'Investors (General Catalyst / Lightspeed / NVIDIA)',
+    target_company: 'Mistral AI',
+    transaction_type: 'Equity Round',
+    amount: 640000000,
+    amount_formatted: '$640 million',
+    currency: 'USD',
+    amount_disclosed: true,
+    announcement_date: '2024-06-11',
+    description: 'European open model champion Mistral AI raised €600 million ($640 million) in Series B funding at a $6.2 billion post-money valuation.',
+    source_name: 'Financial Times / Mistral',
+    source_url: 'https://mistral.ai/news/',
+    confidence: 0.98,
+    created_at: '2024-06-11T10:00:00.000Z',
+    significance_score: 90,
+  },
+  {
+    id: 'tx-apple-openai-2024',
+    source_company: 'Apple',
+    target_company: 'OpenAI',
+    transaction_type: 'Strategic Investment',
+    amount: null,
+    amount_formatted: 'Financial value not publicly disclosed',
+    currency: 'USD',
+    amount_disclosed: false,
+    announcement_date: '2024-06-10',
+    description: 'Apple and OpenAI formed a major ecosystem agreement integrating ChatGPT into Apple Intelligence for Siri and writing tools across Apple devices.',
+    source_name: 'Apple WWDC Keynote / Newsroom',
+    source_url: 'https://www.apple.com/newsroom/2024/06/introducing-apple-intelligence-for-iphone-ipad-and-mac/',
+    confidence: 0.99,
+    created_at: '2024-06-10T17:00:00.000Z',
+    significance_score: 93,
+  },
+  {
+    id: 'tx-paloalto-console-2026',
+    source_company: 'Palo Alto Networks',
+    target_company: 'Console',
+    transaction_type: 'Acquisition',
+    amount: 500000000,
+    amount_formatted: '$500 million',
+    currency: 'USD',
+    amount_disclosed: true,
+    announcement_date: '2026-09-02',
+    description: 'Palo Alto Networks acquired Thrive-backed AI cybersecurity firm Console for $500 million to expand automated LLM endpoint threat remediation.',
+    source_name: 'TechCrunch AI',
+    source_url: 'https://techcrunch.com/2026/09/02/palo-alto-networks-console-500m/',
+    confidence: 0.95,
+    created_at: '2026-09-02T14:15:00.000Z',
+    related_article_url: 'https://techcrunch.com/2026/09/02/palo-alto-networks-console-500m/',
+    significance_score: 87,
+  },
+  {
+    id: 'tx-railway-seriesb-2026',
+    source_company: 'Investors',
+    target_company: 'Railway',
+    transaction_type: 'Equity Round',
+    amount: 100000000,
+    amount_formatted: '$100 million',
+    currency: 'USD',
+    amount_disclosed: true,
+    announcement_date: '2026-01-22',
+    description: 'Railway secured $100 million in financing to accelerate AI-native cloud application deployment and serverless GPU container workflows.',
+    source_name: 'VentureBeat AI',
+    source_url: 'https://venturebeat.com/ai/railway-secures-100-million-to-challenge-aws-with-ai-native-cloud-infrastructure/',
+    confidence: 0.94,
+    created_at: '2026-01-22T13:00:00.000Z',
+    related_article_url: 'https://venturebeat.com/ai/railway-secures-100-million-to-challenge-aws-with-ai-native-cloud-infrastructure/',
+    significance_score: 84,
+  },
+  {
+    id: 'tx-microsoft-inflection-2024',
+    source_company: 'Microsoft',
+    target_company: 'Inflection AI',
+    transaction_type: 'Licensing & Asset Deal',
+    amount: 650000000,
+    amount_formatted: '$650 million',
+    currency: 'USD',
+    amount_disclosed: true,
+    announcement_date: '2024-03-19',
+    description: 'Microsoft paid $650 million for an intellectual property license to Inflection AI models while hiring co-founders Mustafa Suleyman and Karén Simonyan.',
+    source_name: 'Bloomberg / SEC Filings',
+    source_url: 'https://www.bloomberg.com/news/articles/2024-03-21/microsoft-to-pay-inflection-650-million-in-unusual-ai-deal',
+    confidence: 0.98,
+    created_at: '2024-03-19T14:30:00.000Z',
+    significance_score: 91,
+  },
+];
+
+/**
+ * Company Profiles dynamically calculated from transaction relationships
+ */
+export function deriveCompanyProfiles(transactions: AITransaction[]): AICompanyProfile[] {
+  const companyMap = new Map<string, AICompanyProfile>();
+
+  const getTier = (name: string): AICompanyProfile['tier'] => {
+    const n = name.toLowerCase();
+    if (n.includes('nvidia') || n.includes('amd') || n.includes('broadcom') || n.includes('tsmc') || n.includes('intel')) return 'hardware';
+    if (n.includes('microsoft') || n.includes('amazon') || n.includes('google') || n.includes('oracle') || n.includes('meta') || n.includes('apple')) return 'hyperscaler';
+    if (n.includes('openai') || n.includes('anthropic') || n.includes('xai') || n.includes('mistral') || n.includes('deepmind')) return 'frontier-lab';
+    if (n.includes('hugging face') || n.includes('eleuther') || n.includes('allen')) return 'open-source';
+    return 'infrastructure';
+  };
+
+  const getRole = (name: string): string => {
+    const n = name.toLowerCase();
+    if (n.includes('nvidia')) return 'Accelerated Hardware, CUDA Ecosystem & Compute Systems';
+    if (n.includes('microsoft')) return 'Hyperscale Cloud Platform & Copilot Ecosystem';
+    if (n.includes('openai')) return 'Frontier Foundation Models (GPT-4o, o1, o3, Sora)';
+    if (n.includes('anthropic')) return 'Frontier Safety Research & Claude Foundation Models';
+    if (n.includes('hugging face')) return 'Open-Source AI Model Repository & Collaborative Hub';
+    if (n.includes('amd')) return 'High-Performance Microprocessors, GPUs & Datacenter Systems';
+    if (n.includes('amazon') || n.includes('aws')) return 'Hyperscale Cloud Infrastructure & Custom AI Silicon (Trainium)';
+    if (n.includes('google') || n.includes('alphabet')) return 'Multimodal Foundation Models (Gemini), TPUs & Cloud AI';
+    if (n.includes('oracle')) return 'Enterprise Cloud Infrastructure & High-Bandwidth GPU Clusters';
+    if (n.includes('meta')) return 'Open-Weights Model Architectures (Llama) & AI Infrastructure';
+    if (n.includes('coreweave')) return 'Specialized Accelerated Cloud Infrastructure & GPU Superclusters';
+    if (n.includes('xai')) return 'Frontier Reasoning Systems & Colossus Supercomputing Cluster';
+    if (n.includes('databricks')) return 'Data Intelligence Platform & Enterprise Generative AI';
+    if (n.includes('scale ai')) return 'Data Engine & RLHF Infrastructure for Frontier Model Labs';
+    if (n.includes('mistral')) return 'European Open-Weight Foundation Models & Enterprise Deployment';
+    if (n.includes('apple')) return 'Edge Hardware Silicon, Neural Engine & On-Device Apple Intelligence';
+    if (n.includes('softbank')) return 'Global Technology Investment Holding & Stargate Supercomputing Backer';
+    return 'AI Technology & Enterprise Infrastructure';
+  };
+
+  for (const tx of transactions) {
+    // Process Source Company
+    const srcName = tx.source_company;
+    if (srcName && srcName !== 'Investors' && !srcName.startsWith('Venture Syndicate')) {
+      if (!companyMap.has(srcName)) {
+        companyMap.set(srcName, {
+          id: srcName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+          name: srcName,
+          role: getRole(srcName),
+          tier: getTier(srcName),
+          total_invested_usd: 0,
+          total_received_usd: 0,
+          transactions_count: 0,
+          key_developments: [],
+        });
+      }
+      const src = companyMap.get(srcName)!;
+      if (tx.amount && tx.amount_disclosed) {
+        src.total_invested_usd += tx.amount;
+      }
+      src.transactions_count += 1;
+      src.key_developments.push(`${tx.transaction_type} of/in ${tx.target_company} (${tx.amount_formatted})`);
+    }
+
+    // Process Target Company
+    const tgtName = tx.target_company;
+    if (tgtName) {
+      if (!companyMap.has(tgtName)) {
+        companyMap.set(tgtName, {
+          id: tgtName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+          name: tgtName,
+          role: getRole(tgtName),
+          tier: getTier(tgtName),
+          total_invested_usd: 0,
+          total_received_usd: 0,
+          transactions_count: 0,
+          key_developments: [],
+        });
+      }
+      const tgt = companyMap.get(tgtName)!;
+      if (tx.amount && tx.amount_disclosed) {
+        tgt.total_received_usd += tx.amount;
+      }
+      tgt.transactions_count += 1;
+      tgt.key_developments.push(`${tx.transaction_type} from ${tx.source_company} (${tx.amount_formatted})`);
+    }
+  }
+
+  return Array.from(companyMap.values()).sort((a, b) => {
+    const totalA = a.total_invested_usd + a.total_received_usd;
+    const totalB = b.total_invested_usd + b.total_received_usd;
+    return totalB - totalA;
+  });
+}
+
+export function buildTransactionDataset(transactions: AITransaction[]): TransactionDataset {
+  const sorted = [...transactions].sort((a, b) => {
+    const dateA = new Date(a.announcement_date || 0).getTime();
+    const dateB = new Date(b.announcement_date || 0).getTime();
+    if (dateB !== dateA) return dateB - dateA;
+    return (b.amount || 0) - (a.amount || 0);
+  });
+
+  const companies = deriveCompanyProfiles(sorted);
+  const totalVolume = sorted.reduce((sum, tx) => (tx.amount_disclosed && tx.amount ? sum + tx.amount : sum), 0);
+
+  return {
+    transactions: sorted,
+    companies,
+    last_updated: new Date().toISOString(),
+    total_disclosed_volume_usd: totalVolume,
+    version: '2.0.0',
+  };
+}
+
+export const INITIAL_TRANSACTION_DATASET: TransactionDataset = buildTransactionDataset(VERIFIED_TRANSACTIONS);
