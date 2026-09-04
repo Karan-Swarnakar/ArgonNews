@@ -161,9 +161,9 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
       id={`article-entry-${article.id || encodeURIComponent(article.title).slice(0, 20)}`}
       className="group py-5 sm:py-6 border-b border-[#21262d] transition-colors"
     >
-      <div className="flex flex-col justify-between">
+      <div className="flex flex-col sm:flex-row gap-4 justify-between">
         {/* Narrative Content */}
-        <div className="w-full">
+        <div className="w-full min-w-0 flex-1">
           {/* Editorial Header / Metadata Line */}
           <div className="flex items-center justify-between gap-2 mb-2 text-xs">
             <div className="flex items-center gap-2 flex-wrap">
@@ -295,6 +295,16 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Editorial Visual: Provider-sourced illustrative image (falls back to category doodle) */}
+        <div className="w-full sm:w-[140px] md:w-[160px] shrink-0">
+          <ArticleImage
+            article={article}
+            aspectRatio="aspect-[16/10]"
+            onClick={() => onSelect(article)}
+            className="rounded-xs w-full"
+          />
         </div>
       </div>
     </article>

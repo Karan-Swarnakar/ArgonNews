@@ -139,7 +139,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
               <ArticleImage
                 article={article}
                 aspectRatio="aspect-[21/9]"
-                showAttribution={true}
+                showCredit={true}
                 className="w-full"
               />
             </div>

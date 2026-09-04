@@ -1,0 +1,7 @@
+# Cloudflare Worker local dev secrets (used by `wrangler dev`).
+# Copy to .dev.vars and fill in real values - .dev.vars is gitignored and must never be committed.
+# For production, set secrets with: wrangler secret put PEXELS_API_KEY
+
+# Official Pexels API key (https://www.pexels.com/api/) - used server-side only
+# to fetch editorial article images. Never expose this key to the frontend.
+PEXELS_API_KEY=

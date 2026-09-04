@@ -29,6 +29,8 @@ export const ArticleImage: React.FC<ArticleImageProps> = ({
   const imageLicense = article.image_license || 'Public Domain / Open License';
   const imageCredit = article.image_credit || imageSource;
   const imageAlt = article.image_alt || `${article.title} - ${article.category} intelligence visual`;
+  const isPexels = imageSource === 'Pexels';
+  const creditHref = article.image_photographer_url || article.image_page_url;
 
   if (!imageUrl || hasError) {
     return (
@@ -96,21 +98,73 @@ export const ArticleImage: React.FC<ArticleImageProps> = ({
               Image Attribution & License
             </div>
             <div className="text-[#f0f6fc] font-sans font-medium line-clamp-1">
-              {imageCredit}
+              {creditHref ? (
+                <a
+                  href={creditHref}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  className="hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {imageCredit}
+                </a>
+              ) : (
+                imageCredit
+              )}
             </div>
             <div className="flex items-center justify-between text-[#8b949e] pt-1 border-t border-[#21262d] text-[10px]">
               <span>{imageLicense}</span>
-              <span className="text-[#58a6ff]">{imageSource}</span>
+              {isPexels ? (
+                <a
+                  href="https://www.pexels.com"
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  className="text-[#58a6ff] hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {imageSource}
+                </a>
+              ) : (
+                <span className="text-[#58a6ff]">{imageSource}</span>
+              )}
             </div>
           </div>
         )}
       </div>
 
-      {/* Optional In-Card Subtle Credit Bar if requested */}
-      {showCredit && (
-        <div className="absolute bottom-0 inset-x-0 bg-black/75 backdrop-blur-xs px-2 py-1 flex items-center justify-between text-[10px] font-mono text-[#8b949e]">
-          <span className="truncate max-w-[160px]">{imageCredit}</span>
-          <span className="text-[#58a6ff] shrink-0">{imageLicense}</span>
+      {/* Illustrative-image credit bar - always shown for provider-sourced photos per Pexels API attribution requirements */}
+      {(showCredit || isPexels) && (
+        <div
+          className="absolute bottom-0 inset-x-0 bg-black/75 backdrop-blur-xs px-2 py-1 flex items-center gap-1 text-[10px] font-mono text-[#8b949e]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {isPexels ? (
+            <span className="truncate">
+              Photo by{' '}
+              <a
+                href={creditHref || 'https://www.pexels.com'}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                className="text-[#cbd5e1] hover:text-white hover:underline"
+              >
+                {imageCredit}
+              </a>{' '}
+              on{' '}
+              <a
+                href="https://www.pexels.com"
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                className="text-[#58a6ff] hover:underline"
+              >
+                Pexels
+              </a>
+            </span>
+          ) : (
+            <>
+              <span className="truncate max-w-[160px]">{imageCredit}</span>
+              <span className="text-[#58a6ff] shrink-0 ml-auto">{imageLicense}</span>
+            </>
+          )}
         </div>
       )}
     </div>

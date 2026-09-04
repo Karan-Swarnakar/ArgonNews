@@ -30,6 +30,9 @@ export interface Article {
   image_license?: string;
   image_credit?: string;
   image_alt?: string;
+  image_photographer_url?: string; // Link to the photographer's provider profile (attribution)
+  image_page_url?: string; // Link to the original photo page on the provider's site
+  image_checked_at?: string; // Internal: last time an image provider lookup was attempted (cache marker)
   other_sources?: Array<{
     source: string;
     url: string;

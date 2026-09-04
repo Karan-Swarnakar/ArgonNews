@@ -25,6 +25,7 @@ export interface Env {
   ASSETS?: Fetcher;
   CRON_SECRET?: string;
   GEMINI_API_KEY?: string;
+  PEXELS_API_KEY?: string;
   ENVIRONMENT?: string;
 }
 

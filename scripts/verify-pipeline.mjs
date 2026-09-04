@@ -6,7 +6,7 @@ console.log('ARGONNEWS COMPREHENSIVE ARCHITECTURE VERIFICATION');
 console.log('====================================================\n');
 
 let passedChecks = 0;
-let totalChecks = 14;
+let totalChecks = 16;
 
 // 1. Check wrangler.jsonc
 const wranglerPath = './wrangler.jsonc';
@@ -148,6 +148,41 @@ if (apiContent.includes('/api/articles') && apiContent.includes('getArticles')) 
   passedChecks++;
 } else {
   console.error('✗ 14. API cascade missing');
+}
+
+// 15. Verify Pexels image provider module and safe, provider-only fetch behavior
+const pexelsPath = './frontend/src/worker/pexels.ts';
+if (fs.existsSync(pexelsPath)) {
+  const pexelsContent = fs.readFileSync(pexelsPath, 'utf-8');
+  if (
+    pexelsContent.includes('api.pexels.com/v1/search') &&
+    pexelsContent.includes('orientation=landscape') &&
+    pexelsContent.includes('export async function findPexelsImage') &&
+    pexelsContent.includes('export function buildImageSearchQuery')
+  ) {
+    console.log('✓ 15. Pexels image provider module exists and queries only the official Search API with landscape orientation');
+    passedChecks++;
+  } else {
+    console.error('✗ 15. Pexels provider module missing expected safe-fetch behavior');
+  }
+} else {
+  console.error('✗ 15. Pexels provider module (frontend/src/worker/pexels.ts) missing');
+}
+
+// 16. Verify image enrichment is cached (never re-queries an already-checked article) and key stays server-side
+const ingestionSrc = fs.readFileSync(workerIngestionPath, 'utf-8');
+const workerTypesContent = fs.readFileSync('./frontend/src/worker/types.ts', 'utf-8');
+const migration0003 = './frontend/migrations/0003_add_pexels_image_fields.sql';
+if (
+  ingestionSrc.includes('getImageCheckStateForUrls') &&
+  ingestionSrc.includes('image_checked_at') &&
+  workerTypesContent.includes('PEXELS_API_KEY') &&
+  fs.existsSync(migration0003)
+) {
+  console.log('✓ 16. Image enrichment caches lookups per-article (image_checked_at) and PEXELS_API_KEY is a server-only Worker env var');
+  passedChecks++;
+} else {
+  console.error('✗ 16. Pexels caching/env-var wiring incomplete');
 }
 
 console.log(`\nResult: ${passedChecks}/${totalChecks} architecture verification checks PASSED.\n`);

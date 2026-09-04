@@ -30,6 +30,9 @@ export interface ArticleDbRow {
   image_license: string | null;
   image_credit: string | null;
   image_alt: string | null;
+  image_photographer_url: string | null;
+  image_page_url: string | null;
+  image_checked_at: string | null;
   content_hash: string | null;
   other_sources: string | null;
 }
@@ -104,6 +107,8 @@ export function rowToArticle(row: ArticleDbRow): Article {
     image_license: row.image_license || undefined,
     image_credit: row.image_credit || undefined,
     image_alt: row.image_alt || undefined,
+    image_photographer_url: row.image_photographer_url || undefined,
+    image_page_url: row.image_page_url || undefined,
     other_sources: otherSources.length > 0 ? otherSources : undefined,
     analysis: {
       summary,
@@ -206,8 +211,9 @@ export async function insertArticleToD1(db: D1Database, article: Article): Promi
       content, category, published_at, discovered_at, updated_at, collected_at,
       analysis, summary, why_it_matters, importance,
       companies, technologies, image_url, image_source,
-      image_license, image_credit, image_alt, content_hash, other_sources
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      image_license, image_credit, image_alt, image_photographer_url,
+      image_page_url, image_checked_at, content_hash, other_sources
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(url) DO UPDATE SET
       title = excluded.title,
       content = COALESCE(excluded.content, articles.content),
@@ -216,6 +222,9 @@ export async function insertArticleToD1(db: D1Database, article: Article): Promi
       image_license = COALESCE(excluded.image_license, articles.image_license),
       image_credit = COALESCE(excluded.image_credit, articles.image_credit),
       image_alt = COALESCE(excluded.image_alt, articles.image_alt),
+      image_photographer_url = COALESCE(excluded.image_photographer_url, articles.image_photographer_url),
+      image_page_url = COALESCE(excluded.image_page_url, articles.image_page_url),
+      image_checked_at = COALESCE(excluded.image_checked_at, articles.image_checked_at),
       updated_at = excluded.updated_at,
       collected_at = excluded.collected_at,
       analysis = CASE WHEN excluded.summary IS NOT NULL AND length(excluded.summary) > length(COALESCE(articles.summary, '')) THEN excluded.analysis ELSE articles.analysis END,
@@ -256,6 +265,9 @@ export async function insertArticleToD1(db: D1Database, article: Article): Promi
     article.image_license || null,
     article.image_credit || null,
     article.image_alt || null,
+    article.image_photographer_url || null,
+    article.image_page_url || null,
+    article.image_checked_at || null,
     article.url,
     otherSourcesJson
   );
@@ -279,8 +291,9 @@ export async function batchInsertArticlesToD1(db: D1Database, articles: Article[
         content, category, published_at, discovered_at, updated_at, collected_at,
         analysis, summary, why_it_matters, importance,
         companies, technologies, image_url, image_source,
-        image_license, image_credit, image_alt, content_hash, other_sources
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        image_license, image_credit, image_alt, image_photographer_url,
+        image_page_url, image_checked_at, content_hash, other_sources
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(url) DO UPDATE SET
         title = excluded.title,
         content = COALESCE(excluded.content, articles.content),
@@ -289,6 +302,9 @@ export async function batchInsertArticlesToD1(db: D1Database, articles: Article[
         image_license = COALESCE(excluded.image_license, articles.image_license),
         image_credit = COALESCE(excluded.image_credit, articles.image_credit),
         image_alt = COALESCE(excluded.image_alt, articles.image_alt),
+        image_photographer_url = COALESCE(excluded.image_photographer_url, articles.image_photographer_url),
+        image_page_url = COALESCE(excluded.image_page_url, articles.image_page_url),
+        image_checked_at = COALESCE(excluded.image_checked_at, articles.image_checked_at),
         updated_at = excluded.updated_at,
         collected_at = excluded.collected_at,
         analysis = CASE WHEN excluded.summary IS NOT NULL AND length(excluded.summary) > length(COALESCE(articles.summary, '')) THEN excluded.analysis ELSE articles.analysis END,
@@ -328,6 +344,9 @@ export async function batchInsertArticlesToD1(db: D1Database, articles: Article[
       article.image_license || null,
       article.image_credit || null,
       article.image_alt || null,
+      article.image_photographer_url || null,
+      article.image_page_url || null,
+      article.image_checked_at || null,
       article.url,
       otherSourcesJson
     );
@@ -348,6 +367,42 @@ export async function batchInsertArticlesToD1(db: D1Database, articles: Article[
   }
 
   return insertedCount;
+}
+
+/**
+ * Looks up existing image-enrichment state for a batch of article URLs.
+ * Used to avoid re-querying the image provider for articles that already
+ * have an image, or were already checked and found to have no relevant match.
+ */
+export async function getImageCheckStateForUrls(
+  db: D1Database,
+  urls: string[]
+): Promise<Map<string, { hasImage: boolean; wasChecked: boolean }>> {
+  const state = new Map<string, { hasImage: boolean; wasChecked: boolean }>();
+  if (urls.length === 0) return state;
+
+  const CHUNK_SIZE = 100;
+  for (let i = 0; i < urls.length; i += CHUNK_SIZE) {
+    const chunk = urls.slice(i, i + CHUNK_SIZE);
+    const placeholders = chunk.map(() => '?').join(', ');
+    try {
+      const { results } = await db
+        .prepare(`SELECT url, image_url, image_checked_at FROM articles WHERE url IN (${placeholders})`)
+        .bind(...chunk)
+        .all<{ url: string; image_url: string | null; image_checked_at: string | null }>();
+
+      for (const row of results || []) {
+        state.set(row.url, {
+          hasImage: !!row.image_url,
+          wasChecked: !!row.image_checked_at,
+        });
+      }
+    } catch {
+      // Non-blocking: treat as unknown, ingestion will proceed to (re-)attempt lookup
+    }
+  }
+
+  return state;
 }
 
 /**

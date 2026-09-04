@@ -15,7 +15,8 @@ import {
   isGarbageOrNonArticle,
 } from '../utils/text';
 import { D1Database, Env } from './types';
-import { batchInsertArticlesToD1, pruneOldArticles } from './db';
+import { batchInsertArticlesToD1, getImageCheckStateForUrls, pruneOldArticles } from './db';
+import { findPexelsImage } from './pexels';
 
 const BOT_USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 (ArgonNewsAutonomousBot/3.1; +https://argonnews.org)';
@@ -230,6 +231,73 @@ export async function ingestSource(sourceDef: SourceDefinition): Promise<Article
   }
 }
 
+// Caps outbound Pexels lookups per pipeline run to respect API rate limits
+// (cron runs every 30 min, so this bounds sustained usage well under Pexels' hourly quota).
+const MAX_PEXELS_LOOKUPS_PER_RUN = 15;
+
+/**
+ * Enriches articles that lack an image with a relevant photo from Pexels.
+ * Skips articles that already have an image (from RSS) or were already
+ * checked in a prior run (cache: image_checked_at), so the same article
+ * never triggers a repeat API request.
+ */
+async function enrichArticlesWithPexelsImages(
+  articles: Article[],
+  db: D1Database | undefined,
+  apiKey: string | undefined
+): Promise<void> {
+  if (!apiKey || !db) return;
+
+  const needsCheck = articles.filter((a) => !a.image_url && a.url);
+  if (needsCheck.length === 0) return;
+
+  const uniqueUrls = Array.from(new Set(needsCheck.map((a) => a.url)));
+  const existingState = await getImageCheckStateForUrls(db, uniqueUrls);
+
+  const candidates = needsCheck.filter((a) => {
+    const state = existingState.get(a.url);
+    if (!state) return true; // brand new article - eligible
+    return !state.hasImage && !state.wasChecked; // never resolved and never attempted
+  });
+
+  const now = new Date().toISOString();
+  const resolvedByUrl = new Map<string, Article>();
+  let lookupsUsed = 0;
+
+  for (const article of candidates) {
+    if (resolvedByUrl.has(article.url)) {
+      const resolved = resolvedByUrl.get(article.url)!;
+      Object.assign(article, {
+        image_url: resolved.image_url,
+        image_source: resolved.image_source,
+        image_license: resolved.image_license,
+        image_credit: resolved.image_credit,
+        image_alt: resolved.image_alt,
+        image_photographer_url: resolved.image_photographer_url,
+        image_page_url: resolved.image_page_url,
+        image_checked_at: now,
+      });
+      continue;
+    }
+
+    if (lookupsUsed >= MAX_PEXELS_LOOKUPS_PER_RUN) break;
+    lookupsUsed++;
+
+    const result = await findPexelsImage(article, apiKey);
+    article.image_checked_at = now;
+    if (result) {
+      article.image_url = result.image_url;
+      article.image_source = result.image_source;
+      article.image_license = result.image_license;
+      article.image_credit = result.image_credit;
+      article.image_alt = result.image_alt;
+      article.image_photographer_url = result.image_photographer_url;
+      article.image_page_url = result.image_page_url;
+    }
+    resolvedByUrl.set(article.url, article);
+  }
+}
+
 export interface IngestionResult {
   success: boolean;
   startedAt: string;
@@ -284,6 +352,13 @@ export async function runIngestionPipeline(
 
   // Insert into Cloudflare D1 if binding exists
   if (db && allFoundArticles.length > 0) {
+    try {
+      await enrichArticlesWithPexelsImages(allFoundArticles, db, env.PEXELS_API_KEY);
+    } catch (err: any) {
+      // Non-blocking: image enrichment failures never prevent article ingestion
+      console.warn(`[Pexels Enrichment] Non-blocking warning: ${err?.message}`);
+    }
+
     try {
       articlesInserted = await batchInsertArticlesToD1(db, allFoundArticles);
     } catch (err: any) {
